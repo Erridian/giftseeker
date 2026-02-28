@@ -64,7 +64,7 @@ module.exports = class BaseService {
       },
     };
 
-    this.http = axios.create({
+    const axiosConfig = {
       timeout: params.requestTimeout || 5000,
       responseType: "text",
       withCredentials: true,
@@ -76,11 +76,66 @@ module.exports = class BaseService {
       httpsAgent: new https.Agent({
         rejectUnauthorized: false,
       }),
-    });
+    };
+
+    let net;
+    try {
+      net = require("electron").net;
+    } catch (e) { }
+
+    if (net && net.request) {
+      axiosConfig.adapter = function (config) {
+        return new Promise((resolve, reject) => {
+          const request = net.request({
+            method: config.method.toUpperCase(),
+            url: config.url,
+            useSessionCookies: false
+          });
+          if (config.headers) {
+            for (const key of Object.keys(config.headers)) {
+              const val = config.headers[key];
+              if (val !== undefined && val !== null && typeof val !== 'object' && key.toLowerCase() !== 'host') {
+                request.setHeader(key, val.toString());
+              }
+            }
+          }
+          request.on('response', (response) => {
+            const data = [];
+            response.on('data', chunk => data.push(chunk));
+            response.on('end', () => {
+              const responseData = Buffer.concat(data).toString('utf8');
+              resolve({
+                data: config.responseType === 'json' ? JSON.parse(responseData || '{}') : responseData,
+                status: response.statusCode,
+                statusText: response.statusMessage,
+                headers: response.headers,
+                config,
+                request
+              });
+            });
+          });
+          request.on('error', reject);
+          if (config.data) {
+            request.write(config.data);
+          }
+          request.end();
+        });
+      };
+    }
+
+    this.http = axios.create(axiosConfig);
 
     this.http.interceptors.response.use(response => {
-      const host = response.request.socket.servername;
+      let host;
+      if (response.config && response.config.url) {
+        try { host = new URL(response.config.url).hostname; } catch (e) { }
+      }
+      if (!host && response.request && response.request.socket) {
+        host = response.request.socket.servername;
+      }
+
       if (
+        host &&
         this.websiteUrl.indexOf(host) >= 0 &&
         response.headers["set-cookie"]
       ) {
@@ -354,7 +409,7 @@ module.exports = class BaseService {
     this.events.emit("log", message, severity);
   }
 
-  async seekService() {}
+  async seekService() { }
 
   async getUserInfo() {
     throw new Error("Not implemented");
