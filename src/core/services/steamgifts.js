@@ -1,6 +1,7 @@
 const query = require("querystring");
 const { parse } = require("node-html-parser");
 
+const authState = require("../auth-state.enum");
 const BaseService = require("./base-service");
 const translation = require("../../modules/translation");
 const settingType = require("./settings/setting-type.enum");
