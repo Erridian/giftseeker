@@ -8,7 +8,6 @@
 - steamgifts.com
 - indiegala.com
 - opiumpulses.com
-- astats.nl
 
 ### 🛡 Cloudflare / SteamGifts 403 Forbidden Fix (Erridian Fork)
 В этой версии приложения (`2.2.5 Erridian BugFix`) исправлена критическая ошибка "Ошибка соединения с сервисом", возникавшая при работе со **SteamGifts**.
@@ -21,7 +20,8 @@
 
 ## Quick start
 
-Make sure you have [Node.js](https://nodejs.org/) **>= 14.15.3** installed, then type the following commands.
+Для начала нужно скачать [Node.js](https://nodejs.org/) **>= 14.15.3**.
+Так же для того чтобы скачать через консоль данный репозитаорий, у вас должен быть установлен [Git](https://git-scm.com/install/windows)
 
 1. `git clone https://github.com/Erridian/giftseeker.git`
 2. `cd giftseeker`
