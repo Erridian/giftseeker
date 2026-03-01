@@ -85,21 +85,51 @@ class SteamGifts extends BaseService {
     };
   }
 
+  async authCheck() {
+    return this.http
+      .get(this.websiteUrl)
+      .then(response => {
+        // Check if there is a Cloudflare title or body
+        const titleContent = response.data.match(/<title>(.*?)<\/title>/);
+        if (titleContent && titleContent[1].includes("Just a moment...")) {
+          this.log("Cloudflare Challenge encountered during authCheck", 3);
+          return authState.CONNECTION_REFUSED;
+        }
+
+        const document = parse(response.data);
+        const userPointNode = document.querySelector(".nav__points");
+
+        return userPointNode
+          ? authState.AUTHORIZED
+          : authState.NOT_AUTHORIZED;
+      })
+      .catch(ex => {
+        if (ex.code === "HPE_INVALID_HEADER_TOKEN") {
+          return authState.NOT_AUTHORIZED;
+        }
+
+        return ex.status === 200
+          ? authState.NOT_AUTHORIZED
+          : authState.CONNECTION_REFUSED;
+      });
+  }
+
   async getUserInfo() {
     return this.http
       .get("https://www.steamgifts.com/account/settings/profile")
       .then(response => {
         const document = parse(response.data);
 
+        const avatarNode = document.querySelector(".nav__avatar-inner-wrap");
+        const usernameNode = document.querySelector(".form__input-small");
+        const valueNode = document.querySelector(".nav__points");
+
         return {
-          avatar: document
-            .querySelector(".nav__avatar-inner-wrap")
-            .getAttribute("style")
-            .match(/http.*jpg/)[0],
-          username: document
-            .querySelector(".form__input-small")
-            .getAttribute("value"),
-          value: document.querySelector(".nav__points").structuredText,
+          avatar: avatarNode
+            ? (avatarNode.getAttribute("style")?.match(/http.*jpg/)?.[0] || "")
+            : "",
+          username: usernameNode ? usernameNode.getAttribute("value") : "",
+          value: valueNode ? valueNode.structuredText : "0",
         };
       });
   }
@@ -127,10 +157,15 @@ class SteamGifts extends BaseService {
   async enterOnPage(pageUrl) {
     const document = await this.http.get(pageUrl).then(res => parse(res.data));
 
-    const xsrfToken = document
+    const xsrfNode = document
       .querySelectorAll("input")
-      .filter(node => node.getAttribute("name") === "xsrf_token")[0]
-      .getAttribute("value");
+      .filter(node => node.getAttribute("name") === "xsrf_token")[0];
+    const xsrfToken = xsrfNode ? xsrfNode.getAttribute("value") : null;
+
+    if (!xsrfToken) {
+      this.log("Could not find xsrf_token on the page.", 3); // logSeverity.ERROR is 3
+      return;
+    }
 
     const giveaways = this.extractGiveaways(document);
 
@@ -155,9 +190,8 @@ class SteamGifts extends BaseService {
         this.log({
           text: `${translation.get(
             "service.entered_in",
-          )} #link#. ${this.translate("cost")} ${
-            giveaway.cost
-          } ${this.translate("chance")} ${giveaway.winChance}%`,
+          )} #link#. ${this.translate("cost")} ${giveaway.cost
+            } ${this.translate("chance")} ${giveaway.winChance}%`,
           anchor: giveaway.name,
           url: `${this.websiteUrl}${giveaway.url}`,
         });

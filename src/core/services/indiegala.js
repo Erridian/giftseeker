@@ -92,7 +92,7 @@ class IndieGala extends BaseService {
     const giveaways = document
       .querySelectorAll(".items-list-item")
       .map(it => this.parseGiveaway(it, enteredGiveawayIds))
-      .filter(it => it.requiredLevel <= userLevel && !it.entered && it.single)
+      .filter(it => it.token && it.requiredLevel <= userLevel && !it.entered && it.single)
       .reduce((distinct, current) => {
         if (distinct.filter(it => it.id === current.id).length === 0) {
           distinct.push(current);
@@ -161,7 +161,7 @@ class IndieGala extends BaseService {
       id: giveawayId,
       url: linkNode.getAttribute("href"),
       name: linkNode.structuredText,
-      token: actionNode.getAttribute("onclick").match(/[0-9], '(.*)'\)/)[1],
+      token: actionNode ? actionNode.getAttribute("onclick").match(/[0-9], '(.*)'\)/)[1] : null,
       entered: enteredIds.some(it => it === giveawayId),
       price,
       single,
