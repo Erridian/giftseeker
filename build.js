@@ -20,7 +20,9 @@ builder
     targets: (process.argv[2] != null && Platform[process.argv[2]] != null
       ? Platform[process.argv[2]]
       : getCurrentPlatform()
-    ).createTarget(),
+    ).createTarget(
+      (process.argv[2] === 'WINDOWS' || getCurrentPlatform() === Platform.WINDOWS) ? ["nsis", "portable"] : undefined
+    ),
     config: {
       appId: "com.giftseeker.app",
       productName: "GiftSeeker",
@@ -31,13 +33,13 @@ builder
       win: {
         target: [
           {
-            target: "nsis-web",
+            target: "nsis",
             arch: "x64",
           },
           "portable",
         ],
       },
-      nsisWeb: {
+      nsis: {
         artifactName: "giftseeker-setup.${ext}",
         oneClick: false,
         perMachine: false,
@@ -57,7 +59,7 @@ builder
         description: "Automatically join giveaways",
         category: "Game",
       },
-      compression: "maximum",
+      compression: "normal",
       extraResources: ["libraries"],
       asar: true,
       publish: {

@@ -35,6 +35,12 @@ const initSettingsSection = initialData => {
   websiteLink.dataset.link = websiteUrl;
   websiteLink.innerText = "GiftSeeker.RU";
 
+  const erridianLink = document.createElement("button");
+  erridianLink.classList.add("open-website");
+  erridianLink.dataset.link = "https://erridian.ru";
+  erridianLink.innerText = "Erridian.RU";
+  erridianLink.style.marginLeft = "7px";
+
   const steamLink = document.createElement("button");
   steamLink.classList.add("open-website");
   steamLink.dataset.link = "https://steamcommunity.com/groups/GiftSeeker";
@@ -47,9 +53,17 @@ const initSettingsSection = initialData => {
   donationLink.dataset.lang = "settings.donation";
   donationLink.style.marginLeft = "7px";
 
+  const erridianDonationLink = document.createElement("button");
+  erridianDonationLink.classList.add("open-website");
+  erridianDonationLink.dataset.link = "https://www.donationalerts.com/r/erridian";
+  erridianDonationLink.innerText = "❤️ Support Fork";
+  erridianDonationLink.style.marginLeft = "7px";
+
   infoLinks.appendChild(websiteLink);
+  infoLinks.appendChild(erridianLink);
   infoLinks.appendChild(steamLink);
   infoLinks.appendChild(donationLink);
+  infoLinks.appendChild(erridianDonationLink);
 
   document
     .querySelectorAll("[data-menu-id=settings] .setter:not(select)")
