@@ -21,6 +21,11 @@
 
 Для работы со SteamGifts внутренний сетевой слой (`src/core/services/base-service.js`) переписан: маршрутизация выполняется через нативный API `electron.net`. За счет этого Cloudflare распознает запросы как исходящие из настоящего браузера.
 
+
+## Setup
+
+В Releases есть установщик https://github.com/Erridian/giftseeker/releases
+
 ## Информация для новичков
 
 1. Скачиваем программы [Node.js](https://nodejs.org/) и [Git](https://git-scm.com/install/windows) и устанавливаем (желательно со всеми галочками):
@@ -42,9 +47,6 @@ https://git-scm.com/install/windows
 https://vk.com/erridian
 
 
-## Setup
-
-Я не сделал установочник
 
 ## Quick start
 
