@@ -88,13 +88,18 @@ class SteamGifts extends BaseService {
 
   async authCheck() {
     return this.http
-      .get(this.websiteUrl)
+      .get(this.websiteUrl, { validateStatus: () => true })
       .then(response => {
         // Check if there is a Cloudflare title or body
         const titleContent = response.data.match(/<title>(.*?)<\/title>/);
         if (titleContent && titleContent[1].includes("Just a moment...")) {
-          this.log("Cloudflare Challenge encountered during authCheck", 3);
-          return authState.CONNECTION_REFUSED;
+          this.log("Cloudflare Challenge encountered. Please click the Settings gear icon to login/solve CAPTCHA.", 3);
+          return authState.NOT_AUTHORIZED; // Force user to open BrowserWindow to solve JS challenge
+        }
+
+        if (response.status === 403) {
+          this.log("SteamGifts returned 403 Forbidden. You may need to solve a CAPTCHA by logging in again.", 3);
+          return authState.NOT_AUTHORIZED;
         }
 
         const document = parse(response.data);
@@ -105,11 +110,12 @@ class SteamGifts extends BaseService {
           : authState.NOT_AUTHORIZED;
       })
       .catch(ex => {
+        this.log(`authCheck connection error: ${ex.message || ex.code || 'Unknown'}`, 3);
         if (ex.code === "HPE_INVALID_HEADER_TOKEN") {
           return authState.NOT_AUTHORIZED;
         }
 
-        return ex.status === 200
+        return ex.status === 200 || (ex.response && ex.response.status === 200)
           ? authState.NOT_AUTHORIZED
           : authState.CONNECTION_REFUSED;
       });

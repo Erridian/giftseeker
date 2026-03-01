@@ -10,7 +10,7 @@ class OpiumPulses extends BaseService {
       websiteUrl: "https://www.opiumpulses.com",
       authPageUrl: "https://www.opiumpulses.com/site/login",
       winsPageUrl: "https://www.opiumpulses.com/user/giveawaykeys",
-      authCheckUrl: "https://www.opiumpulses.com/site/login",
+      authCheckUrl: "https://www.opiumpulses.com/",
       authContent: "/site/logout",
     });
 
@@ -96,9 +96,9 @@ class OpiumPulses extends BaseService {
     const checkUser = entered
       ? false
       : htmlNode
-          .querySelector(".giveaways-page-item-img-btn-enter")
-          .getAttribute("onClick")
-          .replace(/[^0-9]/g, "");
+        .querySelector(".giveaways-page-item-img-btn-enter")
+        .getAttribute("onClick")
+        .replace(/[^0-9]/g, "");
 
     return {
       name: htmlNode.querySelector(".giveaways-page-item-footer-name")
