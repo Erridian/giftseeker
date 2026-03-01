@@ -11,19 +11,19 @@
 - astats.nl
 
 ### 🛡 Cloudflare / SteamGifts 403 Forbidden Fix (Erridian Fork)
-В этой версии приложения (`2.2.5 Erridian BugFix`) исправлена критическая ошибка "Ошибка соединения с сервисом", возникавшая при работе со **SteamGifts** и **IndieGala**.
+В этой версии приложения (`2.2.5 Erridian BugFix`) исправлена критическая ошибка "Ошибка соединения с сервисом", возникавшая при работе со **SteamGifts**.
 Проблема заключалась в том, что сайты начали использовать продвинутую защиту Cloudflare, блокируя стандартные HTTP-запросы из внутреннего Node.js-окружения (`axios`).
 Для обхода блокировки внутренний сетевой слой (`src/core/services/base-service.js`) был переписан: теперь маршрутизация HTTP-запросов осуществляется через нативный API `electron.net`. За счет этого Cloudflare распознает запросы как исходящие из полноценного браузера Chromium, а не от бота, и пропускает их.
 
 ## Setup
 
-If you are an end user, you can download and install application directly from our website [Download Section](https://giftseeker.ru/downloads).
+Я не сделал установочник
 
 ## Quick start
 
 Make sure you have [Node.js](https://nodejs.org/) **>= 14.15.3** installed, then type the following commands.
 
-1. `git clone https://github.com/codesprut/giftseeker.git`
+1. `git clone https://github.com/Erridian/giftseeker.git`
 2. `cd giftseeker`
 3. `npm install`
 4. `npm run start:ui` or `npm run start:cli`
