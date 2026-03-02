@@ -25,6 +25,29 @@ let preventReadyWindowHiding = false;
 
 app.disableHardwareAcceleration();
 
+try {
+  const fs = require("fs");
+  const path = require("path");
+  storage.setDataPath(config.storageDataPath);
+
+  const settingsFile = path.resolve(config.storageDataPath, "electron.settings.json");
+  if (fs.existsSync(settingsFile)) {
+    const rawData = fs.readFileSync(settingsFile, "utf-8");
+    let parsed = {};
+    try {
+      parsed = JSON.parse(rawData);
+    } catch (e) { }
+
+    if (parsed.user_data_path && typeof parsed.user_data_path === "string" && parsed.user_data_path.trim() !== "") {
+      const customPath = path.normalize(parsed.user_data_path.trim());
+      // Prevent recursive loop if they set it to the old default path or something weird, but Electron should handle it.
+      app.setPath("userData", customPath);
+    }
+  }
+} catch (err) {
+  // Ignore filesystem or permission errors silently
+}
+
 (() => {
   if (!isPrimaryAppInstance) {
     return app.quit();

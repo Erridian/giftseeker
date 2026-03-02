@@ -28,6 +28,15 @@ const initSettingsSection = initialData => {
     });
   };
 
+  const userDataPathArea = document.querySelector("input#user_data_path");
+  userDataPathArea.value = settings.user_data_path || "";
+  userDataPathArea.onchange = () => {
+    ipcRenderer.send("setting-changed", {
+      key: "user_data_path",
+      value: userDataPathArea.value.trim(),
+    });
+  };
+
   const infoLinks = document.querySelector(".content-item .info-links");
 
   const websiteLink = document.createElement("button");
@@ -56,14 +65,21 @@ const initSettingsSection = initialData => {
   const erridianDonationLink = document.createElement("button");
   erridianDonationLink.classList.add("open-website");
   erridianDonationLink.dataset.link = "https://www.donationalerts.com/r/erridian";
-  erridianDonationLink.innerText = "❤️ Support Fork";
+  erridianDonationLink.dataset.lang = "settings.support_fork";
   erridianDonationLink.style.marginLeft = "7px";
+
+  const telegramLink = document.createElement("button");
+  telegramLink.classList.add("open-website");
+  telegramLink.dataset.link = "https://t.me/GiftSeeker_Fork_Erridian";
+  telegramLink.dataset.lang = "settings.telegram";
+  telegramLink.style.marginLeft = "7px";
 
   infoLinks.appendChild(websiteLink);
   infoLinks.appendChild(erridianLink);
   infoLinks.appendChild(steamLink);
   infoLinks.appendChild(donationLink);
   infoLinks.appendChild(erridianDonationLink);
+  infoLinks.appendChild(telegramLink);
 
   document
     .querySelectorAll("[data-menu-id=settings] .setter:not(select)")

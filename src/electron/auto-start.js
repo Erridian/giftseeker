@@ -1,17 +1,27 @@
 const ENV = require("../environment");
-const config = require("./config");
-const AutoLaunch = require("auto-launch");
+const { app } = require("electron");
 
-const autoStart = new AutoLaunch({ name: config.appName });
-
-const isEnabled = () => autoStart.isEnabled();
+const isEnabled = () => {
+  return Promise.resolve(app.getLoginItemSettings().openAtLogin);
+};
 
 const set = enabled => {
+  const executablePath = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+
   if (enabled && !ENV.devMode) {
-    return autoStart.enable();
+    app.setLoginItemSettings({
+      openAtLogin: true,
+      openAsHidden: true,
+      path: executablePath,
+    });
+    return Promise.resolve(true);
   }
 
-  autoStart.disable();
+  app.setLoginItemSettings({
+    openAtLogin: false,
+    path: executablePath,
+  });
+  return Promise.resolve(false);
 };
 
 module.exports = { set, isEnabled };

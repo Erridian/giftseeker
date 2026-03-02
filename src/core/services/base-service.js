@@ -102,6 +102,8 @@ module.exports = class BaseService {
           request.on('response', (response) => {
             const data = [];
             response.on('data', chunk => data.push(chunk));
+            response.on('error', reject);
+            response.on('aborted', () => reject(new Error('Response aborted')));
             response.on('end', () => {
               const responseData = Buffer.concat(data).toString('utf8');
               resolve({
@@ -115,6 +117,7 @@ module.exports = class BaseService {
             });
           });
           request.on('error', reject);
+          request.on('abort', () => reject(new Error('Request aborted')));
           if (config.data) {
             request.write(config.data);
           }

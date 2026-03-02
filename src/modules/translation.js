@@ -63,10 +63,25 @@ const loadTranslations = async () => {
   const loadedTranslations = await storage.loadMany(translationsList);
 
   return Object.fromEntries(
-    loadedTranslations.map(translation => [
-      translation.lang.culture,
-      translation,
-    ]),
+    loadedTranslations.map(translation => {
+      // Inject our custom translations locally since we can't control the remote API
+      if (!translation.settings) translation.settings = {};
+
+      if (translation.lang && translation.lang.culture === 'ru_RU') {
+        translation.settings.user_data_path = 'Папка кэша (сохранится после перезапуска)';
+        translation.settings.support_fork = '❤️ Поддержать форк';
+        translation.settings.telegram = 'Телеграм (Новости)';
+      } else {
+        translation.settings.user_data_path = 'Custom User Data Path (Requires Restart)';
+        translation.settings.support_fork = '❤️ Support Fork';
+        translation.settings.telegram = 'Telegram (News)';
+      }
+
+      return [
+        translation.lang.culture,
+        translation,
+      ];
+    }),
   );
 };
 
