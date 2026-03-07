@@ -74,12 +74,19 @@ const initSettingsSection = initialData => {
   telegramLink.dataset.lang = "settings.telegram";
   telegramLink.style.marginLeft = "7px";
 
+  const vkLink = document.createElement("button");
+  vkLink.classList.add("open-website");
+  vkLink.dataset.link = "https://vk.com/club236495182";
+  vkLink.dataset.lang = "settings.vk";
+  vkLink.style.marginLeft = "7px";
+
   infoLinks.appendChild(websiteLink);
   infoLinks.appendChild(erridianLink);
   infoLinks.appendChild(steamLink);
   infoLinks.appendChild(donationLink);
   infoLinks.appendChild(erridianDonationLink);
   infoLinks.appendChild(telegramLink);
+  infoLinks.appendChild(vkLink);
 
   document
     .querySelectorAll("[data-menu-id=settings] .setter:not(select)")

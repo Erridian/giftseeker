@@ -117,6 +117,15 @@ ipcRenderer.on(
   },
 );
 
+ipcRenderer.on("service-win", async () => {
+  try {
+    const audio = new window.Audio("./sounds/won.wav");
+    audio.play();
+  } catch (e) {
+    console.error("Failed to play win sound", e);
+  }
+});
+
 ipcRenderer.on(
   "service-authorization-required",
   async (event, { serviceName, websiteUrl, authPageUrl, authContent }) => {

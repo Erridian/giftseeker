@@ -30,15 +30,22 @@ try {
   const path = require("path");
   storage.setDataPath(config.storageDataPath);
 
-  const settingsFile = path.resolve(config.storageDataPath, "electron.settings.json");
+  const settingsFile = path.resolve(
+    config.storageDataPath,
+    "electron.settings.json",
+  );
   if (fs.existsSync(settingsFile)) {
     const rawData = fs.readFileSync(settingsFile, "utf-8");
     let parsed = {};
     try {
       parsed = JSON.parse(rawData);
-    } catch (e) { }
+    } catch (e) {}
 
-    if (parsed.user_data_path && typeof parsed.user_data_path === "string" && parsed.user_data_path.trim() !== "") {
+    if (
+      parsed.user_data_path &&
+      typeof parsed.user_data_path === "string" &&
+      parsed.user_data_path.trim() !== ""
+    ) {
       const customPath = path.normalize(parsed.user_data_path.trim());
       // Prevent recursive loop if they set it to the old default path or something weird, but Electron should handle it.
       app.setPath("userData", customPath);
@@ -279,6 +286,10 @@ const loadServicesHandlers = (ipc, services, autostart) => {
         userInfo,
       }),
     );
+
+    service.on("win", () => {
+      ipc.send("service-win", { serviceName });
+    });
 
     service.on("log", (message, severity) => {
       ipc.send("service-new-log", {

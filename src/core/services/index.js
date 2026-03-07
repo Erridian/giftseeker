@@ -3,4 +3,5 @@ module.exports = [
   require("./indiegala"),
   require("./opiumpulses"),
   require("./manncostore"),
+  require("./astats"),
 ];

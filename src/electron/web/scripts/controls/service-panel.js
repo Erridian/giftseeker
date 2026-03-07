@@ -182,7 +182,7 @@ class SettingsControl {
   }
 
   createNumber(params) {
-    const step = params.type === "number" ? 1 : 0.1;
+    const step = params.type === "number" ? 1 : 0.01;
 
     if (params.default < this.min || params.default > this.max) {
       this.saveValue(params.default);
@@ -248,11 +248,11 @@ class SettingsControl {
       this.buttonDec.onmouseup =
       this.buttonInc.onmouseleave =
       this.buttonDec.onmouseleave =
-        () => {
-          clearTimeout(pressTimeout);
-          iterations = 0;
-          pressed = false;
-        };
+      () => {
+        clearTimeout(pressTimeout);
+        iterations = 0;
+        pressed = false;
+      };
   }
 
   incrementValue(params, step) {
@@ -261,9 +261,8 @@ class SettingsControl {
       value = value + step;
       this.buttonDec.classList.remove("disabled");
     }
-
     if (params.type === "float_number") {
-      value = parseFloat(value.toFixed(1));
+      value = parseFloat(value.toFixed(2));
     }
 
     if (value === this.max) {
@@ -280,9 +279,8 @@ class SettingsControl {
       value = value - step;
       this.buttonInc.classList.remove("disabled");
     }
-
     if (params.type === "float_number") {
-      value = parseFloat(value.toFixed(1));
+      value = parseFloat(value.toFixed(2));
     }
 
     if (value === this.min) {

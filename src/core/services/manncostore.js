@@ -9,8 +9,7 @@ class ManncoStore extends BaseService {
         super(settingsStorage, {
             websiteUrl: "https://mannco.store",
             authPageUrl: "https://mannco.store/login?login=",
-            authCheckUrl: "https://mannco.store/",
-            authContent: ".btn-steam", // We look for the absence of this button
+            authContent: ".account-username", // Look for the presence of this class
         });
 
         delete this.settings.pages;
@@ -34,10 +33,10 @@ class ManncoStore extends BaseService {
                     return authState.NOT_AUTHORIZED;
                 }
 
-                const hasBtnSteam = res.data.indexOf('class="btn-steam"') >= 0;
+                const hasUserAccount = res.data.indexOf('class="account-username"') >= 0;
 
-                if (hasBtnSteam) {
-                    this.log(`Mannco.store auth failing. btnSteam=${hasBtnSteam}`, 3);
+                if (!hasUserAccount) {
+                    this.log(`Mannco.store auth failing. account-username not found.`, 3);
                     return authState.NOT_AUTHORIZED;
                 }
 
@@ -55,10 +54,10 @@ class ManncoStore extends BaseService {
         return this.http.get(this.websiteUrl).then(response => {
             const document = parse(response.data);
 
-            const avatarNode = document.querySelector(".dropdown-user .user-avatar");
+            const avatarNode = document.querySelector(".header__navbar-account .account-avatar") || document.querySelector(".account-avatar");
             const avatarUrl = avatarNode ? avatarNode.getAttribute("src") : "";
 
-            const usernameNode = document.querySelector(".dropdown-user .user-name");
+            const usernameNode = document.querySelector(".header__navbar-account .account-username") || document.querySelector(".account-username");
             const username = usernameNode ? usernameNode.structuredText.trim() : "Mannco User";
 
             // If the DOM is blocked or structured differently, try to extract from cookies instead from the response headers
@@ -84,6 +83,20 @@ class ManncoStore extends BaseService {
     }
 
     async seekService() {
+        // First, fetch the list of giveaway URLs we have already joined
+        const joinedIds = await this.http
+            .get(`${this.websiteUrl}/requests/raffle.php?mode=getJoined`, {
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Referer": `${this.websiteUrl}/giveaways`
+                }
+            })
+            .then(({ data }) => {
+                const text = typeof data === "string" ? data : JSON.stringify(data);
+                return text.trim().split(',').filter(id => id.length > 0);
+            })
+            .catch(() => []);
+
         const giveaways = await this.http
             .get(`${this.websiteUrl}/requests/raffle.php?mode=getPublic`, {
                 headers: {
@@ -100,14 +113,23 @@ class ManncoStore extends BaseService {
                 }
 
                 return items.map(ga => {
-                    // When a user joins a giveaway, the JSON usually populates the `descriptionEntered` field
-                    // or adds an `entered`/`joined` flag. We will assume a non-empty `descriptionEntered` 
-                    // or an explicit boolean flag means they are already joined.
-                    const isJoined = ga.entered === true || ga.joined === true ||
+                    // Check if we already joined via the dedicated endpoint or internal flags
+                    const isJoined = joinedIds.includes(ga.url) || ga.entered === true || ga.joined === true ||
                         (typeof ga.descriptionEntered === 'string' && ga.descriptionEntered.trim().length > 0);
 
+                    // Clean name from HTML leftovers
+                    let name = ga.name || "Unknown Giveaway";
+                    name = name
+                        .replace(/<[^>]+>/g, ' ')
+                        .replace(/=/g, ' ')
+                        .replace(/&quot;/g, '"')
+                        .replace(/&#039;/g, "'")
+                        .replace(/&amp;/g, '&')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+
                     return {
-                        name: ga.name || "Unknown Giveaway",
+                        name: name || "Unknown Giveaway",
                         url: ga.url,
                         id: ga.url,
                         isJoined: isJoined
@@ -118,8 +140,6 @@ class ManncoStore extends BaseService {
                 this.log(`Mannco seekService error: ${err.message}`, 3);
                 return [];
             });
-
-        this.log(`Mannco seekService found ${giveaways.length} new giveaways to join.`, 1);
 
         for (const giveaway of giveaways) {
             if (!this.isStarted()) {
@@ -134,7 +154,7 @@ class ManncoStore extends BaseService {
                 this.log({
                     text: `${translation.get("service.entered_in")} #link#`,
                     anchor: giveaway.name,
-                    url: giveaway.url.startsWith("http") ? giveaway.url : `${this.websiteUrl}/${giveaway.url}`,
+                    url: giveaway.url.startsWith("http") ? giveaway.url : `${this.websiteUrl}/giveaways/details/${giveaway.url}`,
                 });
             }
         }
@@ -146,19 +166,24 @@ class ManncoStore extends BaseService {
         const detailsUrl = `${this.websiteUrl}/giveaways/details/${giveaway.id}`;
 
         try {
-            // First, fetch the details page to check if we are already joined
+            // First, fetch the details page to ensure we have a valid session context for this raffle
             const detailRes = await this.http.get(detailsUrl);
             const detailHtml = detailRes.data;
 
-            // If the page does not contain "Join Now" or the join function, we assume we can't join it
-            // (either we are already joined and it says "Leave", or Cloudflare blocked this specific request)
-            if (!detailHtml.toLowerCase().includes("join now") && !detailHtml.toLowerCase().includes("onclick=\"join(")) {
-                // We'll log skipping it to be sure
-                // this.log(`Skipping ${giveaway.id} - Join button not found on details page.`, 3);
+            // Search for current Steam ID on the page to confirm we are logged in from the server perspective
+            // In 2.htm it's: let steamid = "76561198112968527";
+            const steamIdMatch = detailHtml.match(/let steamid = "(.*?)";/);
+            if (!steamIdMatch || steamIdMatch[1] === "") {
+                this.log(`Mannco session issue: SteamID not found on giveaway page.`, 3);
+                // We'll continue anyway, but this is a red flag.
+            }
+
+            // Only call the Join API if we see the Join Now button or function
+            if (!detailHtml.includes('join();') && !detailHtml.includes('Join Now')) {
+                this.log(`Mannco [${giveaway.name}]: Join button not found (already joined or restricted).`, 1);
                 return false;
             }
 
-            // Only call the Join API if we saw the Join button
             const joinRes = await this.http.get(`${this.websiteUrl}/requests/raffle.php?mode=join&url=${giveaway.id}`, {
                 headers: {
                     "X-Requested-With": "XMLHttpRequest",
@@ -166,16 +191,17 @@ class ManncoStore extends BaseService {
                 }
             });
 
-            const dataStr = typeof joinRes.data === "string" ? joinRes.data : JSON.stringify(joinRes.data);
+            const dataStr = (typeof joinRes.data === "string" ? joinRes.data : JSON.stringify(joinRes.data)).trim();
 
             // Check if the response actually indicates success ("ok")
-            const success = dataStr.toLowerCase().includes("success") || dataStr.toLowerCase().includes("joined") || dataStr.toLowerCase().includes("true") || dataStr.trim().replace(/"/g, '') === "ok";
+            const success = dataStr.toLowerCase().includes("ok") || dataStr.toLowerCase().includes("success");
 
             if (!success) {
-                // If the server returns "-2", it means we are already entered. We don't need to log this as a failure.
-                if (dataStr.trim() !== "-2" && dataStr.trim() !== '"-2"') {
-                    this.log(`Mannco Join failed [${giveaway.id}]: HTTP ${joinRes.status} Data: ${dataStr}`, 3);
+                // If it's -1 or -2, we already joined or it's restricted/full
+                if (dataStr === "-1" || dataStr === "-2") {
+                    return false;
                 }
+                this.log(`Mannco Join failed [${giveaway.id}]: HTTP ${joinRes.status} Data: ${dataStr}`, 3);
             }
 
             return success;

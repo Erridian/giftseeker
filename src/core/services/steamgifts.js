@@ -40,8 +40,15 @@ class SteamGifts extends BaseService {
       type: settingType.INTEGER,
       trans: this.translationKey("min_level"),
       min: 0,
-      max: 10,
+      max: this.getConfig("max_level", 10),
       default: this.getConfig("min_level", 0),
+    };
+    this.settings.max_level = {
+      type: settingType.INTEGER,
+      trans: this.translationKey("max_level"),
+      min: this.getConfig("min_level", 0),
+      max: 10,
+      default: this.getConfig("max_level", 0),
     };
     this.settings.min_cost = {
       type: settingType.INTEGER,
@@ -63,26 +70,109 @@ class SteamGifts extends BaseService {
       max: 300,
       default: this.getConfig("max_cost", 0),
     };
+    this.settings.min_entries = {
+      type: settingType.INTEGER,
+      trans: this.translationKey("min_entries"),
+      min: 0,
+      max: 100000,
+      default: this.getConfig("min_entries", 0),
+    };
 
     this.settings.sort_by_chance = {
       type: settingType.CHECKBOX,
       trans: this.translationKey("sort_by_chance"),
       default: this.getConfig("sort_by_chance", false),
     };
+    this.settings.sort_by_level = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("sort_by_level"),
+      default: this.getConfig("sort_by_level", false),
+    };
+    this.settings.sort_by_copies = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("sort_by_copies"),
+      default: this.getConfig("sort_by_copies", false),
+    };
+
+    this.settings.whitelist_only = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("whitelist_only"),
+      default: this.getConfig("whitelist_only", false),
+    };
     this.settings.wishlist_only = {
       type: settingType.CHECKBOX,
       trans: this.translationKey("wishlist_only"),
       default: this.getConfig("wishlist_only", false),
     };
+    this.settings.group_only = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("group_only"),
+      default: this.getConfig("group_only", false),
+    };
+
+    this.settings.whitelist_first = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("whitelist_first"),
+      default: this.getConfig("whitelist_first", false),
+    };
+    this.settings.wishlist_first = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("wishlist_first"),
+      default: this.getConfig("wishlist_first", false),
+    };
+    this.settings.group_first = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("group_first"),
+      default: this.getConfig("group_first", false),
+    };
+    this.settings.multiple_first = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("multiple_first"),
+      default: this.getConfig("multiple_first", false),
+    };
+
     this.settings.reserve_on_wish = {
       type: settingType.CHECKBOX,
       trans: this.translationKey("reserve_on_wish"),
       default: this.getConfig("reserve_on_wish", false),
     };
+    this.settings.reserve_on_group = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("reserve_on_group"),
+      default: this.getConfig("reserve_on_group", false),
+    };
+
     this.settings.ignore_on_wish = {
       type: settingType.CHECKBOX,
       trans: this.translationKey("ignore_on_wish"),
       default: this.getConfig("ignore_on_wish", false),
+    };
+    this.settings.ignore_on_group = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("ignore_on_group"),
+      default: this.getConfig("ignore_on_group", false),
+    };
+
+    this.settings.skip_ost = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("skip_ost"),
+      default: this.getConfig("skip_ost", false),
+    };
+    this.settings.skip_dlc = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("skip_dlc"),
+      default: this.getConfig("skip_dlc", false),
+    };
+
+    this.settings.play_sound = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("play_sound"),
+      default: this.getConfig("play_sound", true),
+    };
+    this.settings.free_ga = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("free_ga"),
+      default: this.getConfig("free_ga", false),
     };
   }
 
@@ -93,24 +183,31 @@ class SteamGifts extends BaseService {
         // Check if there is a Cloudflare title or body
         const titleContent = response.data.match(/<title>(.*?)<\/title>/);
         if (titleContent && titleContent[1].includes("Just a moment...")) {
-          this.log("Cloudflare Challenge encountered. Please click the Settings gear icon to login/solve CAPTCHA.", 3);
+          this.log(
+            "Cloudflare Challenge encountered. Please click the Settings gear icon to login/solve CAPTCHA.",
+            3,
+          );
           return authState.NOT_AUTHORIZED; // Force user to open BrowserWindow to solve JS challenge
         }
 
         if (response.status === 403) {
-          this.log("SteamGifts returned 403 Forbidden. You may need to solve a CAPTCHA by logging in again.", 3);
+          this.log(
+            "SteamGifts returned 403 Forbidden. You may need to solve a CAPTCHA by logging in again.",
+            3,
+          );
           return authState.NOT_AUTHORIZED;
         }
 
         const document = parse(response.data);
         const userPointNode = document.querySelector(".nav__points");
 
-        return userPointNode
-          ? authState.AUTHORIZED
-          : authState.NOT_AUTHORIZED;
+        return userPointNode ? authState.AUTHORIZED : authState.NOT_AUTHORIZED;
       })
       .catch(ex => {
-        this.log(`authCheck connection error: ${ex.message || ex.code || 'Unknown'}`, 3);
+        this.log(
+          `authCheck connection error: ${ex.message || ex.code || "Unknown"}`,
+          3,
+        );
         if (ex.code === "HPE_INVALID_HEADER_TOKEN") {
           return authState.NOT_AUTHORIZED;
         }
@@ -131,9 +228,27 @@ class SteamGifts extends BaseService {
         const usernameNode = document.querySelector(".form__input-small");
         const valueNode = document.querySelector(".nav__points");
 
+        const wonNode = document.querySelector(
+          "a[href='/giveaways/won'] .nav__notification",
+        );
+        const wonCount = wonNode
+          ? parseInt(wonNode.structuredText.trim()) || 0
+          : 0;
+
+        const savedWonCount = this.getConfig("won_count", 0);
+        if (wonCount > savedWonCount) {
+          this.setConfig("won_count", wonCount);
+          if (savedWonCount > 0) {
+            this.events.emit("win", this.name);
+            this.log(`${translation.get("service.win")} (${wonCount})`, 1);
+          }
+        } else if (wonCount < savedWonCount) {
+          this.setConfig("won_count", wonCount);
+        }
+
         return {
           avatar: avatarNode
-            ? (avatarNode.getAttribute("style")?.match(/http.*jpg/)?.[0] || "")
+            ? avatarNode.getAttribute("style")?.match(/http.*jpg/)?.[0] || ""
             : "",
           username: usernameNode ? usernameNode.getAttribute("value") : "",
           value: valueNode ? valueNode.structuredText : "0",
@@ -144,9 +259,15 @@ class SteamGifts extends BaseService {
   async seekService() {
     await this.enterOnPage(
       "https://www.steamgifts.com/giveaways/search?type=wishlist",
+      "wishlist",
     );
 
-    if (this.getConfig("wishlist_only")) {
+    await this.enterOnPage(
+      "https://www.steamgifts.com/giveaways/search?type=group",
+      "group",
+    );
+
+    if (this.getConfig("wishlist_only") || this.getConfig("group_only")) {
       return;
     }
 
@@ -156,12 +277,13 @@ class SteamGifts extends BaseService {
     do {
       await this.enterOnPage(
         `https://www.steamgifts.com/giveaways/search?page=${currentPage}`,
+        "public",
       );
       currentPage++;
     } while (currentPage <= processPages);
   }
 
-  async enterOnPage(pageUrl) {
+  async enterOnPage(pageUrl, pageType) {
     const document = await this.http.get(pageUrl).then(res => parse(res.data));
 
     const xsrfNode = document
@@ -174,19 +296,47 @@ class SteamGifts extends BaseService {
       return;
     }
 
-    const giveaways = this.extractGiveaways(document);
+    let giveaways = this.extractGiveaways(document).map(ga => ({
+      ...ga,
+      pageType,
+    }));
 
     if (this.getConfig("sort_by_chance", false)) {
       giveaways.sort((a, b) => b.winChance - a.winChance);
     }
+    if (this.getConfig("sort_by_level", false)) {
+      giveaways.sort((a, b) => b.levelRequired - a.levelRequired);
+    }
+    if (this.getConfig("sort_by_copies", false)) {
+      giveaways.sort((a, b) => b.copies - a.copies);
+    }
 
-    const wishlistPage = pageUrl.indexOf("wishlist") > 0;
+    if (this.getConfig("multiple_first", false)) {
+      const mult = giveaways.filter(it => it.copies > 1);
+      const single = giveaways.filter(it => it.copies === 1);
+      giveaways = [...mult, ...single];
+    }
+    if (this.getConfig("whitelist_first", false)) {
+      const white = giveaways.filter(it => it.whitelist);
+      const other = giveaways.filter(it => !it.whitelist);
+      giveaways = [...white, ...other];
+    }
+    if (this.getConfig("group_first", false)) {
+      const groups = giveaways.filter(it => it.pageType === "group");
+      const other = giveaways.filter(it => it.pageType !== "group");
+      giveaways = [...groups, ...other];
+    }
+    if (this.getConfig("wishlist_first", false)) {
+      const wish = giveaways.filter(it => it.pageType === "wishlist");
+      const other = giveaways.filter(it => it.pageType !== "wishlist");
+      giveaways = [...wish, ...other];
+    }
 
     for (const giveaway of giveaways) {
       if (!this.isStarted()) {
         return;
       }
-      if (!this.canEnterGiveaway(giveaway, wishlistPage)) {
+      if (!this.canEnterGiveaway(giveaway)) {
         continue;
       }
 
@@ -211,11 +361,38 @@ class SteamGifts extends BaseService {
     const minEntryChance = this.getConfig("min_chance", 0);
     const minTimeLeft = this.getConfig("ending", 0) * 60;
     const minEntryLevel = this.getConfig("min_level", 0);
+    const maxEntryLevel = this.getConfig("max_level", 0);
     const minCost = this.getConfig("min_cost", 0);
     const maxCost = this.getConfig("max_cost", 0);
+    const minEntries = this.getConfig("min_entries", 0);
     const pointsReserve = this.getConfig("points_reserve", 0);
     const reserveExceeded = this.currentValue - giveaway.cost < pointsReserve;
-    const ignoreSomeSetting = wishlistPage && this.getConfig("ignore_on_wish");
+
+    const isWish = giveaway.pageType === "wishlist";
+    const isGroup = giveaway.pageType === "group";
+    const isWhite = giveaway.whitelist;
+
+    const ignoreSomeSetting =
+      (isWish && this.getConfig("ignore_on_wish")) ||
+      (isGroup && this.getConfig("ignore_on_group"));
+
+    if (this.getConfig("whitelist_only") && !isWhite) {
+      return false;
+    }
+    if (this.getConfig("group_only") && !isGroup && !isWhite) {
+      return false;
+    }
+
+    if (
+      this.getConfig("skip_ost") &&
+      (giveaway.name.toLowerCase().includes("soundtrack") ||
+        giveaway.name.toLowerCase().includes(" - ost"))
+    ) {
+      return false;
+    }
+    if (this.getConfig("skip_dlc") && giveaway.isDLC) {
+      return false;
+    }
 
     if (
       (minEntryChance !== 0 && minEntryChance > giveaway.winChance) ||
@@ -223,7 +400,7 @@ class SteamGifts extends BaseService {
       giveaway.entered ||
       !giveaway.levelPass ||
       this.currentValue < giveaway.cost ||
-      (wishlistPage && giveaway.pinned)
+      (isWish && giveaway.pinned)
     ) {
       return false;
     }
@@ -232,14 +409,21 @@ class SteamGifts extends BaseService {
       !ignoreSomeSetting &&
       ((minCost !== 0 && giveaway.cost < minCost) ||
         (maxCost !== 0 && giveaway.cost > maxCost) ||
-        (minEntryLevel !== 0 && minEntryLevel > giveaway.levelRequired))
+        (minEntryLevel !== 0 && minEntryLevel > giveaway.levelRequired) ||
+        (maxEntryLevel !== 0 && maxEntryLevel < giveaway.levelRequired) ||
+        (minEntries !== 0 && giveaway.entries < minEntries))
     ) {
       return false;
     }
 
+    if (giveaway.cost === 0 && this.getConfig("free_ga")) {
+      return true;
+    }
+
     if (
       reserveExceeded &&
-      (!wishlistPage || !this.getConfig("reserve_on_wish"))
+      (!isWish || !this.getConfig("reserve_on_wish")) &&
+      (!isGroup || !this.getConfig("reserve_on_group"))
     ) {
       return false;
     }
@@ -291,6 +475,9 @@ class SteamGifts extends BaseService {
       infoNodes[infoNodes.length - 1].structuredText.replace(/[^0-9]/g, ""),
     );
 
+    const steamUrl =
+      htmlNode.querySelector("a.giveaway__icon")?.getAttribute("href") || "";
+
     return {
       url,
       cost,
@@ -307,12 +494,14 @@ class SteamGifts extends BaseService {
       code: url.split("/")[2],
       entered: !!htmlNode.querySelector(".giveaway__row-inner-wrap.is-faded"),
       winChance: this.calculateWinChance(copies, entries),
+      whitelist: !!htmlNode.querySelector(".fa-star"),
+      isDLC: steamUrl.includes("app/"),
     };
   }
 
   calculateWinChance(copies, entries) {
     const entriesWillBe = entries + 1;
-    const winChance = Number(((copies / entriesWillBe) * 100).toFixed(1));
+    const winChance = Number(((copies / entriesWillBe) * 100).toFixed(2));
 
     return winChance > 100 ? 100 : winChance;
   }
