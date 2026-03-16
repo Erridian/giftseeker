@@ -10,18 +10,9 @@
 - steamgifts.com
 - indiegala.com
 - opiumpulses.com
-- **mannco.store** (Temporarily disabled)
-
-## 🛡 Update 2.2.7 (Erridian Fork)
-This version of the application (`2.2.7 By Erridian`) introduces new integrations, significant UI improvements, and global bug fixes:
+- mannco.store
 
 
-- Fixed `Disconnected` status in **OpiumPulses** caused by header data loss during redirects.
-- Fixed application crashes in **IndieGala** when "join" buttons are not present.
-- Fixed connection loops and authorization issues in **SteamGifts**. Network routing was migrated to the native `electron.net` API to seamlessly emulate browser traffic.
-- **Custom AppData Path (SSD Wear Mitigation):** Prevents heavy SSD disk wear from Chromium cache. Users can now natively route all cache data (`%APPDATA%\GiftSeeker`) to a custom path (e.g. `D:\`) via a new setting in the UI.
-- **Autostart Fixes:** Refactored "Start with OS" logic from the legacy `auto-launch` package to the native Electron `app.setLoginItemSettings()` API. This fixes broken registry paths in compiled `.exe` files.
-- **Portable Builds:** Fully supported single-file Portable `.exe` executables, properly resolving paths bypassing Windows `%TEMP%` extraction folders for autostart functionality.
 
 ## Setup
 
