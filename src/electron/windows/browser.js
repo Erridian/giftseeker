@@ -52,7 +52,7 @@ const create = (session, parentWindow, onClose) => {
         window.webContents
           .executeJavaScript('document.querySelector("body").innerHTML')
           .then(body => {
-            if (body.indexOf(authContent) >= 0) {
+            if (authContent && body.indexOf(authContent) >= 0) {
               window.close();
             }
           });

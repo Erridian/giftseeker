@@ -262,25 +262,39 @@ class SteamGifts extends BaseService {
       "wishlist",
     );
 
+    if (this.getConfig("wishlist_only")) {
+      return;
+    }
+    
+    await this.entryInterval();
+
     await this.enterOnPage(
       "https://www.steamgifts.com/giveaways/search?type=group",
       "group",
     );
 
-    if (this.getConfig("wishlist_only") || this.getConfig("group_only")) {
+    if (this.getConfig("group_only")) {
       return;
     }
 
     let currentPage = 1;
     const processPages = this.getConfig("pages", 1);
 
-    do {
+    if (processPages > 0) {
+      await this.entryInterval();
+    }
+
+    while (currentPage <= processPages) {
       await this.enterOnPage(
         `https://www.steamgifts.com/giveaways/search?page=${currentPage}`,
         "public",
       );
+      
+      if (currentPage < processPages) {
+         await this.entryInterval();
+      }
       currentPage++;
-    } while (currentPage <= processPages);
+    }
   }
 
   async enterOnPage(pageUrl, pageType) {
@@ -379,6 +393,9 @@ class SteamGifts extends BaseService {
     if (this.getConfig("whitelist_only") && !isWhite) {
       return false;
     }
+    if (this.getConfig("wishlist_only") && !isWish) {
+      return false;
+    }
     if (this.getConfig("group_only") && !isGroup && !isWhite) {
       return false;
     }
@@ -405,6 +422,10 @@ class SteamGifts extends BaseService {
       return false;
     }
 
+    if (giveaway.cost === 0 && this.getConfig("free_ga")) {
+      return true;
+    }
+
     if (
       !ignoreSomeSetting &&
       ((minCost !== 0 && giveaway.cost < minCost) ||
@@ -414,10 +435,6 @@ class SteamGifts extends BaseService {
         (minEntries !== 0 && giveaway.entries < minEntries))
     ) {
       return false;
-    }
-
-    if (giveaway.cost === 0 && this.getConfig("free_ga")) {
-      return true;
     }
 
     if (
@@ -495,7 +512,11 @@ class SteamGifts extends BaseService {
       entered: !!htmlNode.querySelector(".giveaway__row-inner-wrap.is-faded"),
       winChance: this.calculateWinChance(copies, entries),
       whitelist: !!htmlNode.querySelector(".fa-star"),
-      isDLC: steamUrl.includes("app/"),
+      isDLC: steamUrl.includes("app/") && (
+        linkNode.structuredText.toLowerCase().includes("dlc") ||
+        linkNode.structuredText.toLowerCase().includes("expansion") ||
+        linkNode.structuredText.toLowerCase().includes("addon")
+      ),
     };
   }
 

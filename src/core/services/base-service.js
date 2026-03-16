@@ -86,42 +86,62 @@ module.exports = class BaseService {
     if (net && net.request) {
       axiosConfig.adapter = function (config) {
         return new Promise((resolve, reject) => {
-          const request = net.request({
-            method: config.method.toUpperCase(),
-            url: config.url,
-            useSessionCookies: false
-          });
-          if (config.headers) {
-            for (const key of Object.keys(config.headers)) {
-              const val = config.headers[key];
-              if (val !== undefined && val !== null && typeof val !== 'object' && key.toLowerCase() !== 'host') {
-                request.setHeader(key, val.toString());
+          let retryCount = 0;
+          const maxRetries = 2;
+
+          const makeRequest = () => {
+            const request = net.request({
+              method: config.method.toUpperCase(),
+              url: config.url,
+              useSessionCookies: false
+            });
+            if (config.headers) {
+              for (const key of Object.keys(config.headers)) {
+                const val = config.headers[key];
+                if (val !== undefined && val !== null && typeof val !== 'object' && key.toLowerCase() !== 'host') {
+                  request.setHeader(key, val.toString());
+                }
               }
             }
-          }
-          request.on('response', (response) => {
-            const data = [];
-            response.on('data', chunk => data.push(chunk));
-            response.on('error', reject);
-            response.on('aborted', () => reject(new Error('Response aborted')));
-            response.on('end', () => {
-              const responseData = Buffer.concat(data).toString('utf8');
-              resolve({
-                data: config.responseType === 'json' ? JSON.parse(responseData || '{}') : responseData,
-                status: response.statusCode,
-                statusText: response.statusMessage,
-                headers: response.headers,
-                config,
-                request
+            request.on('response', (response) => {
+              const data = [];
+              response.on('data', chunk => data.push(chunk));
+              response.on('error', (err) => {
+                if (retryCount < maxRetries && err && err.message && (err.message.includes('ERR_HTTP2_PING_FAILED') || err.message.includes('ERR_HTTP2_PROTOCOL_ERROR'))) {
+                  retryCount++;
+                  makeRequest();
+                } else {
+                  reject(err);
+                }
+              });
+              response.on('aborted', () => reject(new Error('Response aborted')));
+              response.on('end', () => {
+                const responseData = Buffer.concat(data).toString('utf8');
+                resolve({
+                  data: config.responseType === 'json' ? JSON.parse(responseData || '{}') : responseData,
+                  status: response.statusCode,
+                  statusText: response.statusMessage,
+                  headers: response.headers,
+                  config,
+                  request
+                });
               });
             });
-          });
-          request.on('error', reject);
-          request.on('abort', () => reject(new Error('Request aborted')));
-          if (config.data) {
-            request.write(config.data);
-          }
-          request.end();
+            request.on('error', (err) => {
+              if (retryCount < maxRetries && err && err.message && (err.message.includes('ERR_HTTP2_PING_FAILED') || err.message.includes('ERR_HTTP2_PROTOCOL_ERROR'))) {
+                retryCount++;
+                makeRequest();
+              } else {
+                reject(err);
+              }
+            });
+            request.on('abort', () => reject(new Error('Request aborted')));
+            if (config.data) {
+              request.write(config.data);
+            }
+            request.end();
+          };
+          makeRequest();
         });
       };
     }

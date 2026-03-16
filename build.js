@@ -53,8 +53,8 @@ builder
       linux: {
         target: ["AppImage", "deb"],
         icon: "./src/resources/images/icon.256x256.png",
-        maintainer: "Codesprut",
-        vendor: "Codesprut",
+        maintainer: "Erridian",
+        vendor: "Erridian",
         synopsis: "Public giveaways helper",
         description: "Automatically join giveaways",
         category: "Game",

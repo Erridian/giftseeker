@@ -12,6 +12,7 @@ class IndieGala extends BaseService {
       websiteUrl: "https://www.indiegala.com",
       authPageUrl: "https://www.indiegala.com/login",
       winsPageUrl: "https://www.indiegala.com/profile",
+      authContent: "username-text",
       requestTimeout: 15000,
     });
 
@@ -24,6 +25,11 @@ class IndieGala extends BaseService {
       type: settingType.CHECKBOX,
       trans: this.translationKey("sort_by_entries"),
       default: this.getConfig("sort_by_entries", false),
+    };
+    this.settings.auto_roulette = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("auto_roulette"),
+      default: this.getConfig("auto_roulette", true),
     };
     this.settings.min_entries = {
       type: settingType.INTEGER,
@@ -193,11 +199,78 @@ class IndieGala extends BaseService {
     const userLevel = await this.getUserLevel();
 
     await this.checkWins();
+    await this.spinRoulette();
 
     do {
       await this.enterOnPage(currentPage, userLevel);
       currentPage++;
     } while (currentPage <= processPages);
+  }
+
+  async spinRoulette() {
+    if (!this.getConfig("auto_roulette", true)) {
+      return;
+    }
+
+    const lastSpinTime = this.getConfig("last_roulette_spin", 0);
+    const twelveHoursMs = 12 * 60 * 60 * 1000;
+
+    if (Date.now() - lastSpinTime < twelveHoursMs) {
+      return;
+    }
+
+    try {
+      const res = await this.http.get(`${this.websiteUrl}/giveaways`);
+      const data = res.data;
+
+      const document = parse(data);
+      const tokenInput = document.querySelector("input[name=csrfmiddlewaretoken]");
+      const csrfToken = tokenInput ? tokenInput.getAttribute("value") : null;
+
+      if (!csrfToken) return;
+
+      const match = data.match(/fortuneWheelInit\(\s*(\{[\s\S]*?\})\s*\);/);
+
+      if (!match || !match[1]) {
+        this.setConfig("last_roulette_spin", Date.now());
+        return;
+      }
+
+      let prizeStr = "";
+      try {
+        const wheelData = JSON.parse(match[1]);
+        const winningPrize = wheelData.prizes.find(p => p.winning);
+        if (winningPrize) {
+          prizeStr = ` [${winningPrize.label_short} ${winningPrize.label}]`.replace(/<[^>]*>?/gm, '');
+        }
+      } catch (e) {
+        // ignore JSON parse error
+      }
+
+      const response = await this.http.post(
+        `${this.websiteUrl}/ajax/fortune-wheel-redeem`,
+        {},
+        {
+          headers: {
+            "X-CSRFToken": csrfToken,
+            "X-CSRF-Token": csrfToken,
+            "X-Requested-With": "XMLHttpRequest",
+            Referer: `${this.websiteUrl}/profile`,
+          },
+        },
+      );
+
+      if (response && response.status === 200) {
+        this.log(`${translation.get("service.indiegala.roulette_spin")}${prizeStr}`, "win");
+      }
+
+      this.setConfig("last_roulette_spin", Date.now());
+    } catch (ex) {
+      this.log(
+        "IndieGala Roulette error: " + (ex.message || ex.statusText || ex),
+        logSeverity.ERROR,
+      );
+    }
   }
 
   async checkWins() {

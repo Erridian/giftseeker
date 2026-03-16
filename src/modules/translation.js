@@ -97,6 +97,7 @@ const loadTranslations = async () => {
         sg.skip_ost = 'Не вступать в Soundtrack';
         sg.skip_dlc = 'Не вступать в DLC';
         sg.free_ga = 'Вступать в бесплатные раздачи';
+        sg.free_ga_title = 'Игнорировать минимальную стоимость для бесплатных раздач (0P)';
         sg.reserve_on_group = 'Резерв для страницы групп';
         sg.ignore_on_group = 'Игнорировать страницу групп';
 
@@ -109,6 +110,7 @@ const loadTranslations = async () => {
 
         ig.sort_by_price = 'Сортировка по цене';
         ig.sort_by_entries = 'Сортировка по участникам';
+        ig.auto_roulette = 'Авто-рулетка';
         ig.min_entries = 'Мин. Участников';
         ig.min_level = 'Мин. Уровень';
         ig.max_level = 'Макс. Уровень';
@@ -132,6 +134,7 @@ const loadTranslations = async () => {
         ig.whitelist_nocards = 'Игнорировать карточки в белом списке';
         ig.steam_only = 'Только для Steam';
         ig.view_ga_info = 'Показывать информацию';
+        ig.roulette_spin = 'Рулетка прокручена';
 
         const op = translation.service.opiumpulses;
         if (!translation.service.opiumpulses) translation.service.opiumpulses = {};
@@ -156,7 +159,6 @@ const loadTranslations = async () => {
         sg.skip_ost_title = 'Не вступать в раздачи саундтреков';
         sg.skip_dlc_title = 'Не вступать в раздачи дополнений';
         sg.play_sound_title = 'Воспроизводить звук при победе';
-        sg.free_ga_title = 'Вступать в раздачи со стоимостью 0 очков';
         sg.reserve_on_group_title = 'Использовать резерв очков для групповых раздач';
         sg.ignore_on_group_title = 'Не учитывать настройки уровня и стоимости для групповых раздач';
         sg.min_entries_title = 'Минимальное количество участников для входа в раздачу';
@@ -186,13 +188,15 @@ const loadTranslations = async () => {
         sg.skip_ost = 'Skip Soundtracks';
         sg.skip_dlc = 'Skip DLCs';
         sg.free_ga = 'Enter free giveaways';
-        sg.reserve_on_group = 'Points reserve for groups';
+        sg.free_ga_title = 'Ignore minimum cost for free giveaways (0P)';
+        sg.reserve_on_group = 'Points reserve for group page';
         sg.ignore_on_group = 'Ignore Group page';
         sg.min_entries = 'Min. Entries';
         sg.max_level = 'Max. Level';
 
         ig.sort_by_price = 'Sort by price';
         ig.sort_by_entries = 'Sort by entries';
+        ig.auto_roulette = 'Auto-spin roulette';
         ig.min_entries = 'Min. Entries';
         ig.min_level = 'Min. Level';
         ig.max_level = 'Max. Level';
@@ -216,6 +220,7 @@ const loadTranslations = async () => {
         ig.whitelist_nocards = 'Ignore card setting for Whitelist';
         ig.steam_only = 'Steam only';
         ig.view_ga_info = 'View GA info';
+        ig.roulette_spin = 'Roulette spun';
 
         const op_en = translation.service.opiumpulses;
         if (!translation.service.opiumpulses) translation.service.opiumpulses = {};
@@ -245,7 +250,6 @@ const loadTranslations = async () => {
         sg.skip_ost_title = 'Do not enter soundtracks';
         sg.skip_dlc_title = 'Do not enter DLCs';
         sg.play_sound_title = 'Play sound notification on win';
-        sg.free_ga_title = 'Enter giveaways with cost 0';
         sg.reserve_on_group_title = 'Use points reserve for group giveaways';
         sg.ignore_on_group_title = 'Ignore level and cost limits for group giveaways';
         sg.min_entries_title = 'Minimum participants required to enter';

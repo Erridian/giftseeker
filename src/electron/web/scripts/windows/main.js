@@ -39,28 +39,10 @@ const initSettingsSection = initialData => {
 
   const infoLinks = document.querySelector(".content-item .info-links");
 
-  const websiteLink = document.createElement("button");
-  websiteLink.classList.add("open-website");
-  websiteLink.dataset.link = websiteUrl;
-  websiteLink.innerText = "GiftSeeker.RU";
-
   const erridianLink = document.createElement("button");
   erridianLink.classList.add("open-website");
   erridianLink.dataset.link = "https://erridian.ru";
   erridianLink.innerText = "Erridian.RU";
-  erridianLink.style.marginLeft = "7px";
-
-  const steamLink = document.createElement("button");
-  steamLink.classList.add("open-website");
-  steamLink.dataset.link = "https://steamcommunity.com/groups/GiftSeeker";
-  steamLink.dataset.lang = "settings.steam_group";
-  steamLink.style.marginLeft = "7px";
-
-  const donationLink = document.createElement("button");
-  donationLink.classList.add("open-website");
-  donationLink.dataset.link = new URL("/donation", websiteUrl).href;
-  donationLink.dataset.lang = "settings.donation";
-  donationLink.style.marginLeft = "7px";
 
   const erridianDonationLink = document.createElement("button");
   erridianDonationLink.classList.add("open-website");
@@ -80,10 +62,7 @@ const initSettingsSection = initialData => {
   vkLink.dataset.lang = "settings.vk";
   vkLink.style.marginLeft = "7px";
 
-  infoLinks.appendChild(websiteLink);
   infoLinks.appendChild(erridianLink);
-  infoLinks.appendChild(steamLink);
-  infoLinks.appendChild(donationLink);
   infoLinks.appendChild(erridianDonationLink);
   infoLinks.appendChild(telegramLink);
   infoLinks.appendChild(vkLink);

@@ -1,14 +1,14 @@
 {
   "name": "giftseeker",
-  "version": "2.2.9",
+  "version": "2.2.10",
   "author": "CodeSprut (Fork by Erridian)",
   "license": "MIT",
   "description": "Automatically join giveaways",
-  "homepage": "https://giftseeker.ru/",
+  "homepage": "https://Erridian.ru/",
   "main": "src/electron/main.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/codesprut/giftseeker.git"
+    "url": "https://github.com/Erridian/giftseeker.git"
   },
   "scripts": {
     "test": "jest",
