@@ -11,7 +11,7 @@ const renderUserInfo = userInfo => {
 };
 
 const initSettingsSection = initialData => {
-  const { currentBuild, websiteUrl, translations, settings } = initialData;
+  const { currentBuild, steamUrl, translations, settings } = initialData;
 
   initTranslationSelector(translations);
 
@@ -155,8 +155,9 @@ ipcRenderer.on("userinfo-updated", async (event, userData) => {
 });
 
 ipcRenderer.on("window-initial-data", async (event, initialData) => {
-  const { accountInfo } = initialData;
+  const { accountInfo, translations } = initialData;
 
+  updatePagePhrases(translations.phrases);
   initSettingsSection(initialData);
   renderUserInfo(accountInfo.userData);
   initServicesSwitcher(initialData.settings);

@@ -85,8 +85,8 @@ try {
     const settings = await Settings.build("electron", config.defaultSettings);
     const services = Services.map(service => new service(settings));
 
-    settings.set("start_with_os", await autoStart.isEnabled());
     settings.on("change", "start_with_os", autoStart.set);
+    autoStart.set(settings.get("start_with_os"));
 
     const session = sessionConstructor.create(settings, config.appName);
     const { auth: authWindow, main: mainWindow } = windows.init(settings);
@@ -98,17 +98,17 @@ try {
       }
     });
 
-    const logout = () => {
-      session.flush();
+    const logout = async () => {
+      await session.flush();
       windows.main().hide();
       windows.auth().show();
 
-      windows.auth().webContents.executeJavaScript("setLogoutState()");
+      windows.auth().webContents.send("user-logout");
     };
 
     // prevent the tray icon from being destroyed by the GC
     // eslint-disable-next-line no-unused-vars
-    const trayIcon = createTrayIcon(browser);
+    const trayIcon = createTrayIcon();
 
     startApp(authWindow, settings);
 
@@ -157,7 +157,7 @@ try {
 
     ipcMain.on("window-loaded", ({ sender }, windowName) => {
       sender.send("window-initial-data", {
-        websiteUrl: config.websiteUrl,
+        steamUrl: config.steamUrl,
         userAgent: {
           default: config.defaultSettings.user_agent,
           initial: session.getSessionInstance().getUserAgent(),
@@ -264,6 +264,7 @@ try {
 
 const loadServicesHandlers = (ipc, services, autostart) => {
   for (const service of services) {
+    service.clearEvents();
     const serviceName = service.name;
 
     service.on("state.changed", processState => {
@@ -338,7 +339,7 @@ const checkSessionIsAlive = async (session, ipcRenderer) => {
 
 const startApp = (authWindow, settings) => {
   translation
-    .init(settings, config.websiteUrl)
+    .init(settings)
     .then(() => {
       authWindow.loadFile("./src/electron/web/auth.html");
 
@@ -369,18 +370,9 @@ const startApp = (authWindow, settings) => {
     });
 };
 
-const createTrayIcon = browser => {
+const createTrayIcon = () => {
   const trayIcon = new Tray(nativeImage.createFromPath(config.appIcon));
-  const trayMenu = Menu.buildFromTemplate([
-    {
-      label: "Open Website",
-      click: () => {
-        browser.openUrl(config.websiteUrl);
-      },
-    },
-    { type: "separator" },
-    { role: "quit" },
-  ]);
+  const trayMenu = Menu.buildFromTemplate([{ role: "quit" }]);
 
   trayIcon.setToolTip(`${config.appName} ${currentBuild}`);
   trayIcon.setContextMenu(trayMenu);

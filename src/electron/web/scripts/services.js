@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-import { getTranslation } from "./language.js";
+import { getTranslation, updatePagePhrases } from "./language.js";
 import browser from "./browser.js";
 import { format as timeFormat, elapsed as timeElapsed } from "./utlis/time.js";
 
@@ -13,7 +13,10 @@ const panelsWrap = document.querySelector(".services-panels");
 
 const services = {};
 
-ipcRenderer.on("window-initial-data", async (event, { servicesInfo }) => {
+ipcRenderer.on("window-initial-data", async (event, { servicesInfo, translations }) => {
+  iconsWrap.innerHTML = "";
+  panelsWrap.innerHTML = "";
+
   for (const serviceInfo of servicesInfo) {
     const service = {
       name: serviceInfo.name,
@@ -81,6 +84,7 @@ ipcRenderer.on("window-initial-data", async (event, { servicesInfo }) => {
   services[firstService].icon.setActive();
   services[firstService].panel.setActive();
 
+  updatePagePhrases(translations.phrases);
   ipcRenderer.send("services-loaded");
 });
 
@@ -119,7 +123,7 @@ ipcRenderer.on(
 
 ipcRenderer.on("service-win", async () => {
   try {
-    const audio = new window.Audio("./sounds/won.wav");
+    const audio = new window.Audio("./sounds/won.mp3");
     audio.play();
   } catch (e) {
     console.error("Failed to play win sound", e);

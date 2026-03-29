@@ -52,7 +52,7 @@ const create = (session, parentWindow, onClose) => {
         window.webContents
           .executeJavaScript('document.querySelector("body").innerHTML')
           .then(body => {
-            if (authContent && body.indexOf(authContent) >= 0) {
+            if (body.indexOf(authContent) >= 0) {
               window.close();
             }
           });
@@ -65,7 +65,7 @@ const create = (session, parentWindow, onClose) => {
       window.once("close", () => {
         window.webContents.removeAllListeners("did-finish-load");
 
-        const cookies = session.extractCookiesByDomain(websiteUrl);
+        const cookies = session.extractCookiesStringByUrl(websiteUrl);
 
         resolve(cookies);
       });
