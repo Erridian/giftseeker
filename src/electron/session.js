@@ -32,8 +32,28 @@ const create = (settings, sessionName) => {
       .get(steamUrl, {
         headers: { Cookie: cookieString },
       })
-      .then(({ data }) => {
-        if (!checkSteamLoggedIn(data)) {
+      .then(async response => {
+        const setCookie = response.headers["set-cookie"];
+        if (setCookie) {
+          const domain = new URL(steamUrl).hostname;
+          for (const cookieRow of setCookie) {
+            const [nameValue] = cookieRow.split(";");
+            const [name, ...valueParts] = nameValue.split("=");
+            const value = valueParts.join("=");
+
+            await _session.cookies.set({
+              url: steamUrl,
+              name: name.trim(),
+              value: value.trim(),
+              domain,
+              path: "/",
+              secure: true,
+              httpOnly: cookieRow.toLowerCase().includes("httponly"),
+            });
+          }
+        }
+
+        if (!checkSteamLoggedIn(response.data)) {
           return {
             loggedIn: false,
           };
@@ -41,7 +61,7 @@ const create = (settings, sessionName) => {
 
         return {
           loggedIn: true,
-          userData: extractSteamData(data),
+          userData: extractSteamData(response.data),
         };
       })
       .catch(() => ({
