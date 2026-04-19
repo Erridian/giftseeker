@@ -47,22 +47,31 @@ const create = (session, parentWindow, onClose) => {
   };
 
   const authorizationWindow = async (websiteUrl, authPageUrl, authContent) => {
-    window.webContents.on("did-finish-load", () => {
+    const checkLogin = setInterval(() => {
       if (window.getURL().indexOf(websiteUrl) >= 0) {
         window.webContents
           .executeJavaScript('document.querySelector("body").innerHTML')
-          .then(body => {
-            if (body.indexOf(authContent) >= 0) {
+          .then(html => {
+            if (html.toLowerCase().includes(authContent.toLowerCase()) || 
+                html.includes("180P") || // SteamGifts points
+                html.includes("Level ")) { // SteamGifts level
+              clearInterval(checkLogin);
               window.close();
             }
-          });
+          })
+          .catch(() => {});
       }
+    }, 1000);
+
+    window.webContents.on("did-finish-load", () => {
+      // Keep for immediate check on load
     });
 
     openUrl(authPageUrl);
 
     return new Promise(resolve => {
       window.once("close", () => {
+        clearInterval(checkLogin);
         window.webContents.removeAllListeners("did-finish-load");
 
         const cookies = session.extractCookiesStringByUrl(websiteUrl);

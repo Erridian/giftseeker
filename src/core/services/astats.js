@@ -4,13 +4,13 @@ const translation = require("../../modules/translation");
 const { parse: parseHtml } = require("node-html-parser");
 
 class Astats extends BaseService {
-  constructor(settingsStorage) {
-    super(settingsStorage, {
+  constructor(settingsStorage, params, session) {
+    super(settingsStorage, Object.assign({
       websiteUrl: "https://astats.astats.nl/astats/",
       authPageUrl: "https://astats.astats.nl/astats/profile/Login.php",
       authContent: "Log out",
       withValue: false,
-    });
+    }, params), session);
 
     delete this.settings.pages;
   }

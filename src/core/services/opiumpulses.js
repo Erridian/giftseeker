@@ -6,14 +6,14 @@ const runningState = require("../running-state.enum");
 const settingType = require("./settings/setting-type.enum");
 
 class OpiumPulses extends BaseService {
-  constructor(settingsStorage) {
-    super(settingsStorage, {
+  constructor(settingsStorage, params, session) {
+    super(settingsStorage, Object.assign({
       websiteUrl: "https://www.opiumpulses.com",
       authPageUrl: "https://www.opiumpulses.com/site/login",
       winsPageUrl: "https://www.opiumpulses.com/user/giveawaykeys",
       authCheckUrl: "https://www.opiumpulses.com/",
       authContent: "/site/logout",
-    });
+    }, params), session);
 
     delete this.settings.pages;
 

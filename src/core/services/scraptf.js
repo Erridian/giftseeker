@@ -5,13 +5,13 @@ const settingType = require("./settings/setting-type.enum");
 const config = require("../../config");
 
 class ScrapTF extends BaseService {
-    constructor(settingsStorage) {
-        super(settingsStorage, {
+    constructor(settingsStorage, params, session) {
+        super(settingsStorage, Object.assign({
             websiteUrl: "https://scrap.tf",
             authPageUrl: "https://scrap.tf/login",
             authContent: "My Auctions",
             withValue: false,
-        });
+        }, params), session);
 
         this.settings.sort_by_end = {
             type: settingType.CHECKBOX,

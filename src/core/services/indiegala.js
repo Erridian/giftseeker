@@ -5,16 +5,17 @@ const BaseService = require("./base-service");
 const translation = require("../../modules/translation");
 const clearHtmlTags = require("../utils/clear-html-tags");
 const settingType = require("./settings/setting-type.enum");
+const logSeverity = require("../log-severity.enum");
 
 class IndieGala extends BaseService {
-  constructor(settingsStorage) {
-    super(settingsStorage, {
+  constructor(settingsStorage, params, session) {
+    super(settingsStorage, Object.assign({
       websiteUrl: "https://www.indiegala.com",
       authPageUrl: "https://www.indiegala.com/login",
       winsPageUrl: "https://www.indiegala.com/profile",
-      authContent: "username-text",
+      authContent: "logged-in",
       requestTimeout: 15000,
-    });
+    }, params), session);
 
     this.settings.sort_by_price = {
       type: settingType.CHECKBOX,
@@ -160,13 +161,25 @@ class IndieGala extends BaseService {
       trans: this.translationKey("view_ga_info"),
       default: this.getConfig("view_ga_info", false),
     };
+
+    this.csrfToken = null;
   }
 
   async authCheck() {
     return this.http(`${this.websiteUrl}/giveaways`)
       .then(res => {
+        if (typeof res.data === "string" && (res.data.includes("cf-browser-verification") || res.data.includes("ddos-guard"))) {
+          this.log("IndieGala Cloudflare/DDoS-Guard challenge detected.", logSeverity.ERROR);
+          return authState.CONNECTION_REFUSED;
+        }
+
         const document = parse(res.data);
         const usernameNode = document.querySelector(".username-text");
+
+        if (!usernameNode && res.data.includes("logged-in")) {
+           // Possible partial load or different layout, but "logged-in" class is usually a good sign
+           return authState.AUTHORIZED;
+        }
 
         return usernameNode ? authState.AUTHORIZED : authState.NOT_AUTHORIZED;
       })
@@ -175,7 +188,7 @@ class IndieGala extends BaseService {
           return authState.NOT_AUTHORIZED;
         }
 
-        return ex.status === 200
+        return ex.response && (ex.response.status === 200 || ex.response.status === 403)
           ? authState.NOT_AUTHORIZED
           : authState.CONNECTION_REFUSED;
       });
@@ -185,10 +198,14 @@ class IndieGala extends BaseService {
     return this.http.get(`${this.websiteUrl}/giveaways`).then(response => {
       const document = parse(response.data);
 
+      const avatarNode = document.querySelector("figure.avatar img");
+      const usernameNode = document.querySelector(".username-text");
+      const valueNode = document.querySelector("#galasilver-amount");
+
       return {
-        avatar: document.querySelector("figure.avatar img").getAttribute("src"),
-        username: document.querySelector(".username-text").structuredText,
-        value: document.querySelector("#galasilver-amount").structuredText,
+        avatar: avatarNode ? avatarNode.getAttribute("src") : "",
+        username: usernameNode ? usernameNode.structuredText : "",
+        value: valueNode ? valueNode.structuredText : "0",
       };
     });
   }
@@ -198,6 +215,7 @@ class IndieGala extends BaseService {
     const processPages = this.getConfig("pages", 1);
     const userLevel = await this.getUserLevel();
 
+    this.csrfToken = null; // Reset CSRF token at the start of each seek cycle
     await this.checkWins();
     await this.spinRoulette();
 
@@ -214,11 +232,13 @@ class IndieGala extends BaseService {
 
     const lastSpinTime = this.getConfig("last_roulette_spin", 0);
     const twelveHoursMs = 12 * 60 * 60 * 1000;
+    const hoursSinceLastSpin = (Date.now() - lastSpinTime) / (1000 * 60 * 60);
 
     if (Date.now() - lastSpinTime < twelveHoursMs) {
       return;
     }
 
+    this.log("Starting auto-roulette spin...");
     try {
       const res = await this.http.get(`${this.websiteUrl}/giveaways`);
       const data = res.data;
@@ -316,18 +336,29 @@ class IndieGala extends BaseService {
   }
 
   async getCsrfToken() {
-    return this.http.get(`${this.websiteUrl}/giveaways`).then(({ data }) => {
-      const document = parse(data);
-      const tokenInput = document.querySelector(
-        "input[name=csrfmiddlewaretoken]",
-      );
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
 
-      return tokenInput.getAttribute("value");
-    });
+    try {
+      const { data } = await this.http.get(`${this.websiteUrl}/giveaways`);
+      const document = parse(data);
+      const tokenInput = document.querySelector("input[name=csrfmiddlewaretoken]");
+
+      this.csrfToken = tokenInput ? tokenInput.getAttribute("value").trim() : null;
+      return this.csrfToken;
+    } catch (e) {
+      this.log(`Failed to fetch CSRF token: ${e.message}`, "error");
+      return null;
+    }
   }
 
   async enterOnPage(page, userLevel) {
     const csrfToken = await this.getCsrfToken();
+    if (!csrfToken) {
+      this.log("Skipping page entry: CSRF token is missing.", "error");
+      return;
+    }
     const enteredGiveawayIds = await this.getEnteredGiveawayIds();
 
     let sortOption = "expiry/asc";
@@ -344,7 +375,19 @@ class IndieGala extends BaseService {
           transformResponse: this.clearResponse,
         },
       )
-      .then(res => parse(res.data.html));
+      .then(res => (res.data && res.data.html) ? parse(res.data.html) : null)
+      .catch(e => {
+        if (e.message.includes('ERR_CONNECTION_RESET')) {
+           this.log(`IndieGala connection reset (ERR_CONNECTION_RESET) on page ${page}.`, "error");
+        } else {
+           this.log(`Failed to fetch page ${page}: ${e.message}`, "error");
+        }
+        return null;
+      });
+
+    if (!document) {
+      return;
+    }
 
     const minEntries = this.getConfig("min_entries", 0);
     const minCost = this.getConfig("min_cost", 0);
@@ -356,11 +399,13 @@ class IndieGala extends BaseService {
     const skipDlc = this.getConfig("skip_dlc", false);
     const reserveNoMulti = this.getConfig("reserve_no_multi", false);
 
-    const giveaways = document
+    const allGiveaways = document
       .querySelectorAll(".items-list-item")
-      .map(it => this.parseGiveaway(it, enteredGiveawayIds))
+      .map(it => this.parseGiveaway(it, enteredGiveawayIds));
+
+    const giveaways = allGiveaways
       .filter(it => {
-        if (!it.token || it.requiredLevel > userLevel || it.entered) {
+        if (!it.id || it.token === null || it.requiredLevel > userLevel || it.entered) {
           return false;
         }
 
@@ -420,6 +465,10 @@ class IndieGala extends BaseService {
         return distinct;
       }, []);
 
+    if (allGiveaways.length === 0) {
+      return;
+    }
+
     for (const giveaway of giveaways) {
       if (!this.isStarted()) {
         return;
@@ -444,18 +493,29 @@ class IndieGala extends BaseService {
   }
 
   async getEnteredGiveawayIds() {
-    const document = await this.http
+    const res = await this.http
       .get(
         `${this.websiteUrl}/library/giveaways/giveaways-in-progress/entries`,
         {
-          transformResponse: this.clearResponse,
+          transformResponse: this.clearResponse.bind(this),
         },
       )
-      .then(res => parse(res.data.html));
+      .catch(() => null);
+
+    if (!res || !res.data || !res.data.html) {
+      return [];
+    }
+
+    const document = parse(res.data.html);
 
     return document
       .querySelectorAll("a:not([href='#'])")
-      .map(it => it.getAttribute("href").match(/[0-9]+$/)[0]);
+      .map(it => {
+        const href = it.getAttribute("href");
+        const match = href.match(/\/(\d+)(?:\/|$)/) || href.match(/(\d+)$/);
+        return match ? match[1] : null;
+      })
+      .filter(id => id !== null);
   }
 
   parseGiveaway(htmlNode, enteredIds) {
@@ -467,7 +527,9 @@ class IndieGala extends BaseService {
         .querySelector(".items-list-item-data-button a")
         ?.getAttribute("data-price") ?? 0,
     );
-    const giveawayId = linkNode.getAttribute("href").match(/\d+/)[0];
+    const href = linkNode.getAttribute("href");
+    const giveawayIdMatch = href.match(/\/(\d+)(?:\/|$)/) || href.match(/(\d+)$/);
+    const giveawayId = giveawayIdMatch ? giveawayIdMatch[1] : null;
     const single = typeNode.structuredText.indexOf("single") === 0;
     const requiredLevel = (() => {
       const levelSpan = typeNode.querySelector("span");
@@ -488,7 +550,7 @@ class IndieGala extends BaseService {
       url: linkNode.getAttribute("href"),
       name: linkNode.structuredText,
       token: actionNode
-        ? actionNode.getAttribute("onclick").match(/[0-9], '(.*)'\)/)[1]
+        ? (actionNode.getAttribute("onclick").match(/,\s*['"]([^'"]*)['"]\s*\)\s*$/) || [null, ""])[1]
         : null,
       entered: enteredIds.some(it => it === giveawayId),
       price,
@@ -502,7 +564,7 @@ class IndieGala extends BaseService {
     return this.http({
       transformResponse: this.jsonResponseTransformer,
       url: `${this.websiteUrl}/giveaways/join`,
-      data: { id: giveawayId, token: giveawayToken },
+      data: { id: giveawayId.toString(), token: giveawayToken || "" },
       method: "post",
       headers: {
         authority: "www.indiegala.com",
@@ -516,20 +578,40 @@ class IndieGala extends BaseService {
         "x-csrftoken": csrfToken,
       },
     })
-      .then(res => res.data)
-      .catch(() => ({
-        status: "error",
-      }));
+      .then(res => {
+        if (res.data && res.data.status !== "ok" && res.data.status !== "silver" && res.data.status !== "duplicate" && res.data.status !== "error") {
+          this.log(`Entry failed for ${giveawayId}: ${res.data.status} ${res.data.message || ""}`, "error");
+        }
+        return res.data;
+      })
+      .catch(e => {
+        this.log(`Entry request error for ${giveawayId}: ${e.message}`, "error");
+        return {
+          status: "error",
+        };
+      });
   }
 
   jsonResponseTransformer(data) {
-    return typeof data === "string" ? JSON.parse(data) : data;
+    if (typeof data !== "string") return data;
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      return { status: "error", message: "Invalid JSON response (possibly HTML/Cloudflare)" };
+    }
   }
 
   clearResponse(data) {
-    const response = clearHtmlTags(data, ["script"]).replace(/\n/g, "\\n");
+    if (typeof data !== "string") {
+      return data;
+    }
 
-    return JSON.parse(response);
+    try {
+      const response = clearHtmlTags(data, ["script"]).replace(/\n/g, "\\n");
+      return JSON.parse(response);
+    } catch (e) {
+      return { html: "" };
+    }
   }
 }
 

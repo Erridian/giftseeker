@@ -188,9 +188,6 @@
     },
     "manncostore": {
       "value_label": "Items"
-    },
-    "astats": {
-      "value_label": "Stats"
     }
   },
   "settings": {
@@ -201,16 +198,22 @@
     "telegram": "Telegram (News)",
     "vk": "VKontakte (Group)",
     "autoswitch": "Auto-switch services",
+    "autoswitch_title": "Automatically switch between services for optimization",
     "autoscroll": "Auto-scroll logs",
+    "autoscroll_title": "Automatically scroll activity log down when new messages appear",
     "steam_local": "Local Steam data",
+    "steam_local_title": "Use local Steam client data to speed up giveaway checking",
     "dlc_local": "Local DLC data",
     "skipdlc_local": "Local DLC skip data",
     "card_local": "Local cards data",
     "trial_local": "Local Trial data",
     "start_with_os": "Start with system",
     "start_minimized": "Start minimized",
+    "start_minimized_title": "Start program minimized (in tray)",
     "minimize_on_close": "Minimize on close",
+    "minimize_on_close_title": "Minimize to tray instead of closing when clicking the 'X' button",
     "autostart": "Autostart services",
+    "autostart_title": "Automatically start all enabled services when the program starts",
     "use_system_browser": "Open links via browser",
     "build_version": "Build version"
   }

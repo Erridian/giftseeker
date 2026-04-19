@@ -8,9 +8,12 @@ const runningState = require("../running-state.enum");
 const logSeverity = require("../log-severity.enum");
 const settingType = require("./settings/setting-type.enum");
 
+console.log("!!! BaseService.js version 2.2.13 LOADED !!!");
+
 module.exports = class BaseService {
-  constructor(settingsStorage, { withValue = true, ...params }) {
+  constructor(settingsStorage, { withValue = true, ...params }, session) {
     this.settingsStorage = settingsStorage;
+    this.session = session;
 
     this.currentValue = 0;
     this.withValue = withValue;
@@ -84,21 +87,34 @@ module.exports = class BaseService {
     } catch (e) { }
 
     if (net && net.request) {
+      const self = this;
       axiosConfig.adapter = function (config) {
         return new Promise((resolve, reject) => {
           let retryCount = 0;
           const maxRetries = 2;
 
           const makeRequest = () => {
-            const request = net.request({
+            const requestOptions = {
               method: config.method.toUpperCase(),
               url: config.url,
-              useSessionCookies: false
-            });
+              useSessionCookies: true
+            };
+
+            // Use the provided session object or the session from its wrapper
+            if (self.session) {
+              requestOptions.session = self.session.getSessionInstance ? self.session.getSessionInstance() : self.session;
+            }
+
+            const request = net.request(requestOptions);
+            
             if (config.headers) {
               for (const key of Object.keys(config.headers)) {
                 const val = config.headers[key];
+                // If we use session cookies, we usually don't want to pass a manual Cookie header unless it's specifically needed
                 if (val !== undefined && val !== null && typeof val !== 'object' && key.toLowerCase() !== 'host') {
+                  if (key.toLowerCase() === 'cookie' && requestOptions.useSessionCookies) {
+                    continue;
+                  }
                   request.setHeader(key, val.toString());
                 }
               }
@@ -148,6 +164,14 @@ module.exports = class BaseService {
 
     this.http = axios.create(axiosConfig);
 
+    // Migration: Sync existing cookie from settings to native session on startup
+    if (this.session && this.session.setCookiesFromString) {
+      const storedCookie = this.getConfig("cookie", "");
+      if (storedCookie) {
+         this.session.setCookiesFromString(this.websiteUrl, storedCookie);
+      }
+    }
+
     this.http.interceptors.response.use(response => {
       let host;
       if (response.config && response.config.url) {
@@ -166,6 +190,7 @@ module.exports = class BaseService {
           response.headers["set-cookie"],
         );
 
+        console.log(`[BaseService] ${this.name} received cookies from host: ${host}`);
         this.modifyCookie(cookieArray);
       }
 
@@ -183,24 +208,34 @@ module.exports = class BaseService {
 
   async authCheck() {
     return this.http
-      .get(this.authCheckUrl ?? this.websiteUrl)
-      .then(res =>
-        res.data.indexOf(this.authContent) >= 0
-          ? authState.AUTHORIZED
-          : authState.NOT_AUTHORIZED,
-      )
-      .catch(err =>
-        err.status === 200
+      .get(this.authCheckUrl ?? this.websiteUrl, { validateStatus: () => true })
+      .then(res => {
+        const isAuth = res.data.indexOf(this.authContent) >= 0;
+        if (!isAuth && res.status === 200) {
+          console.log(`[BaseService] Auth check failed for ${this.name}: ${this.authContent} not found in response string.`);
+        }
+        return isAuth ? authState.AUTHORIZED : authState.NOT_AUTHORIZED;
+      })
+      .catch(err => {
+        console.log(`[BaseService] Auth check error for ${this.name}: ${err.message}`);
+        return err.response && err.response.status === 200
           ? authState.NOT_AUTHORIZED
-          : authState.CONNECTION_REFUSED,
-      );
+          : authState.CONNECTION_REFUSED;
+      });
   }
 
   parseSetCookieHeader(header) {
     return header.map(row => {
-      const [[name, value]] = row
-        .split(";")
-        .map(param => param.trim().split("="));
+      const parts = row.split(";").map(param => param.trim());
+      const firstPart = parts[0];
+      const separatorIndex = firstPart.indexOf("=");
+
+      if (separatorIndex === -1) {
+        return [firstPart, ""];
+      }
+
+      const name = firstPart.substring(0, separatorIndex);
+      const value = firstPart.substring(separatorIndex + 1);
 
       return [name, value];
     });
@@ -208,12 +243,18 @@ module.exports = class BaseService {
 
   modifyCookie(cookieArray) {
     let needUpdate = false;
-    const currentCookies = new Map(
-      this.getConfig("cookie", "")
-        .split(";")
-        .filter(row => row.length)
-        .map(row => row.trim().split("=")),
-    );
+    const currentCookies = new Map();
+
+    this.getConfig("cookie", "")
+      .split(";")
+      .filter(row => row.trim().length > 0)
+      .forEach(row => {
+        const trimmed = row.trim();
+        const sep = trimmed.indexOf("=");
+        if (sep !== -1) {
+          currentCookies.set(trimmed.substring(0, sep), trimmed.substring(sep + 1));
+        }
+      });
     cookieArray.forEach(cookie => {
       const [name, newValue] = cookie;
       if (currentCookies.get(name) !== newValue) {
@@ -228,8 +269,20 @@ module.exports = class BaseService {
   }
 
   setCookie(cookie) {
+    if (!cookie) {
+      console.log(`[BaseService] Clearing cookie for ${this.name}`);
+    } else {
+      const hasPhpSessId = cookie.includes("PHPSESSID=");
+      console.log(`[BaseService] Setting cookie for ${this.name}: ${cookie.substring(0, 50)}... (Length: ${cookie.length}, PHPSESSID: ${hasPhpSessId})`);
+    }
+    
     this.setConfig("cookie", cookie);
     this.http.defaults.headers.Cookie = cookie;
+
+    // Sync back to native session if available
+    if (this.session && this.session.setCookiesFromString) {
+      this.session.setCookiesFromString(this.websiteUrl, cookie);
+    }
   }
 
   async start(autostart) {
@@ -237,8 +290,10 @@ module.exports = class BaseService {
       return authState.AUTHORIZED;
     }
 
+    console.log(`[BaseService] Starting service ${this.name} (autostart: ${!!autostart})`);
     this.setState(runningState.PROCESS);
     const authResult = await this.authCheck();
+    console.log(`[BaseService] Auth check result for ${this.name}: ${authResult}`);
 
     switch (authResult) {
       case authState.AUTHORIZED:

@@ -5,12 +5,12 @@ const BaseService = require("./base-service");
 const translation = require("../../modules/translation");
 
 class ManncoStore extends BaseService {
-    constructor(settingsStorage) {
-        super(settingsStorage, {
+    constructor(settingsStorage, params, session) {
+        super(settingsStorage, Object.assign({
             websiteUrl: "https://mannco.store",
             authPageUrl: "https://mannco.store/login?login=",
             authContent: ".account-username", // Look for the presence of this class
-        });
+        }, params), session);
 
         delete this.settings.pages;
         delete this.settings.points_reserve;
@@ -20,16 +20,15 @@ class ManncoStore extends BaseService {
         return this.http
             .get(this.websiteUrl, { validateStatus: () => true })
             .then(res => {
-                const titleContent = res.data.match(/<title>(.*?)<\/title>/);
-                const title = titleContent ? titleContent[1] : "No Title";
+                const titleContent = res.data.match(/<title>(.*?)<\/title>/i);
+                const isCloudflare =
+                    (titleContent && (titleContent[1].includes("Just a moment...") || titleContent[1].includes("Cloudflare"))) ||
+                    res.data.includes("cf-challenge") ||
+                    res.data.includes("cf-browser-verification") ||
+                    res.data.includes("challenge-running");
 
-                if (res.status !== 200) {
-                    this.log(`Mannco.store authCheck HTTP ${res.status} [${title}]`, 3);
-                    return authState.NOT_AUTHORIZED;
-                }
-
-                if (titleContent && titleContent[1].includes("Just a moment...")) {
-                    this.log("Cloudflare Challenge encountered. Please login/solve CAPTCHA.", 3);
+                if (isCloudflare) {
+                    this.log("Cloudflare Challenge detected. Please click the Settings gear icon (⚙️) to solve it.", 3);
                     return authState.NOT_AUTHORIZED;
                 }
 

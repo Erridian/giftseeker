@@ -83,12 +83,12 @@ try {
 
   app.on("ready", async () => {
     const settings = await Settings.build("electron", config.defaultSettings);
-    const services = Services.map(service => new service(settings));
+    const session = sessionConstructor.create(settings, config.appName);
+    const services = Services.map(service => new service(settings, {}, session));
 
     settings.on("change", "start_with_os", autoStart.set);
     autoStart.set(settings.get("start_with_os"));
 
-    const session = sessionConstructor.create(settings, config.appName);
     const { auth: authWindow, main: mainWindow } = windows.init(settings);
     const browser = browserConstructor.create(session, mainWindow, () => {
       if (mainWindow.hidden) {
@@ -97,6 +97,9 @@ try {
         mainWindow.focus();
       }
     });
+
+    mainWindow.webContents.setMaxListeners(100);
+    authWindow.webContents.setMaxListeners(100);
 
     const logout = async () => {
       await session.flush();
@@ -156,6 +159,8 @@ try {
     });
 
     ipcMain.on("window-loaded", ({ sender }, windowName) => {
+      sender.removeAllListeners("did-finish-load");
+      sender.removeAllListeners("did-stop-loading");
       sender.send("window-initial-data", {
         steamUrl: config.steamUrl,
         userAgent: {
@@ -194,13 +199,38 @@ try {
       }
     });
 
+    let sessionCheckFailures = 0;
+
     ipcMain.on("check-session-is-alive", async ({ sender }) => {
-      const authCheckResult = await session.checkUserIsLoggedIn(currentBuild);
+      let authCheckResult = null;
+      let retries = 3;
+
+      while (retries > 0) {
+        authCheckResult = await session.checkUserIsLoggedIn(currentBuild);
+        if (authCheckResult.loggedIn || !authCheckResult.error) {
+          break;
+        }
+        retries--;
+        if (retries > 0) {
+          console.log(`[Main] Session check failed with error. Retrying... (${retries} left)`);
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+      }
 
       if (authCheckResult.loggedIn) {
+        sessionCheckFailures = 0;
         sender.send("userinfo-updated", authCheckResult.userData);
+      } else if (!authCheckResult.error) {
+        sessionCheckFailures++;
+        console.log(`[Main] Session check failed (${sessionCheckFailures}/3).`);
+
+        if (sessionCheckFailures >= 3) {
+          console.log("[Main] Session check failed definitively (Not Logged In). Triggering logout.");
+          logout();
+          sessionCheckFailures = 0;
+        }
       } else {
-        logout();
+        console.log("[Main] Session check failed due to repeated errors. Skipping logout.");
       }
     });
 

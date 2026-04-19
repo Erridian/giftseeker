@@ -4,13 +4,13 @@ const BaseService = require("./base-service");
 const translation = require("../../modules/translation");
 
 class Follx extends BaseService {
-  constructor(settingsStorage) {
-    super(settingsStorage, {
+  constructor(settingsStorage, params, session) {
+    super(settingsStorage, Object.assign({
       websiteUrl: "https://follx.com",
       authPageUrl: "https://follx.com/logIn",
       winsPageUrl: "https://follx.com/giveaways/won",
       authContent: "/account",
-    });
+    }, params), session);
   }
 
   async getUserInfo() {

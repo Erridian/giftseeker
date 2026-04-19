@@ -7,13 +7,13 @@ const translation = require("../../modules/translation");
 const settingType = require("./settings/setting-type.enum");
 
 class SteamGifts extends BaseService {
-  constructor(settingsStorage) {
-    super(settingsStorage, {
+  constructor(settingsStorage, params, session) {
+    super(settingsStorage, Object.assign({
       websiteUrl: "https://www.steamgifts.com",
       authPageUrl: "https://www.steamgifts.com/?login",
       winsPageUrl: "https://www.steamgifts.com/giveaways/won",
       authContent: "Account",
-    });
+    }, params), session);
 
     this.settings.points_reserve = {
       type: settingType.INTEGER,
@@ -180,19 +180,31 @@ class SteamGifts extends BaseService {
     return this.http
       .get(this.websiteUrl, { validateStatus: () => true })
       .then(response => {
-        // Check if there is a Cloudflare title or body
-        const titleContent = response.data.match(/<title>(.*?)<\/title>/);
-        if (titleContent && titleContent[1].includes("Just a moment...")) {
+        // Check for Cloudflare challenge
+        const titleContent = response.data.match(/<title>(.*?)<\/title>/i);
+        const title = titleContent ? titleContent[1] : "";
+        const isCloudflare =
+          title.includes("Just a moment...") ||
+          title.includes("Один момент…") ||
+          title.includes("Cloudflare") ||
+          title.includes("Attention Required! | Cloudflare") ||
+          response.data.includes("cf-challenge") ||
+          response.data.includes("cf-browser-verification") ||
+          response.data.includes("challenge-running") ||
+          response.data.includes("challenge-form") ||
+          response.data.includes("Выполнение проверки безопасности");
+
+        if (isCloudflare) {
           this.log(
-            "Cloudflare Challenge encountered. Please click the Settings gear icon to login/solve CAPTCHA.",
+            `Cloudflare Challenge detected [${title}]. Please click the Settings gear icon (⚙️) to solve it.`,
             3,
           );
-          return authState.NOT_AUTHORIZED; // Force user to open BrowserWindow to solve JS challenge
+          return authState.NOT_AUTHORIZED;
         }
 
-        if (response.status === 403) {
+        if (response.status === 403 || response.status === 503) {
           this.log(
-            "SteamGifts returned 403 Forbidden. You may need to solve a CAPTCHA by logging in again.",
+            `SteamGifts returned HTTP ${response.status} [${title}]. You may need to solve a CAPTCHA or update your session.`,
             3,
           );
           return authState.NOT_AUTHORIZED;
@@ -200,6 +212,18 @@ class SteamGifts extends BaseService {
 
         const document = parse(response.data);
         const userPointNode = document.querySelector(".nav__points");
+
+        if (!userPointNode) {
+          const loginNode = document.querySelector(".nav__sits");
+          if (loginNode) {
+            console.log("[SteamGifts] Points not found, login button detected. User is not logged in.");
+          } else {
+            console.log("[SteamGifts] Neither points nor login button found. Page structure might have changed or access is blocked.");
+            if (response.data.length < 500) {
+              console.log(`[SteamGifts] Response too short (${response.data.length} chars). Possible block or error.`);
+            }
+          }
+        }
 
         return userPointNode ? authState.AUTHORIZED : authState.NOT_AUTHORIZED;
       })
