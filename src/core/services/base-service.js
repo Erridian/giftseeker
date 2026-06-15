@@ -8,7 +8,7 @@ const runningState = require("../running-state.enum");
 const logSeverity = require("../log-severity.enum");
 const settingType = require("./settings/setting-type.enum");
 
-console.log("!!! BaseService.js version 2.2.13 LOADED !!!");
+console.log("!!! BaseService.js version 2.2.14 LOADED !!!");
 
 module.exports = class BaseService {
   constructor(settingsStorage, { withValue = true, ...params }, session) {
