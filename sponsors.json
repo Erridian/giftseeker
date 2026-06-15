@@ -1,22 +1,7 @@
 {
   "top_sponsors": [
-    {
-      "name": "Имя Спонсора 1",
-      "amount": "1000 ₽",
-      "badge": "Gold"
-    },
-    {
-      "name": "Имя Спонсора 2",
-      "amount": "500 ₽",
-      "badge": "Silver"
-    },
-    {
-      "name": "Имя Спонсора 3",
-      "amount": "200 ₽",
-      "badge": "Bronze"
-    },
-    {
-      "name": "Имя Спонсора 4",
+        {
+      "name": "w00d00",
       "badge": "Normal"
     }
   ]
