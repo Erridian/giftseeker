@@ -24,10 +24,10 @@ builder
       (process.argv[2] === 'WINDOWS' || getCurrentPlatform() === Platform.WINDOWS) ? ["nsis", "portable"] : undefined
     ),
     config: {
-      appId: "com.giftseeker.app",
-      productName: "GiftSeeker",
-      artifactName: "giftseeker.${ext}",
-      copyright: "Copyright © 2016-2021 Alexander Pinashin",
+      appId: "com.dropushko.app",
+      productName: "Dropushko",
+      artifactName: "dropushko.${ext}",
+      copyright: "Copyright © 2016-2026 Erridian",
       files: ["src", "node_modules", "LICENSE"],
       icon: "./src/resources/images/icon.ico",
       win: {
@@ -40,7 +40,7 @@ builder
         ],
       },
       nsis: {
-        artifactName: "giftseeker-setup.${ext}",
+        artifactName: "dropushko-setup.${ext}",
         oneClick: false,
         perMachine: false,
         allowElevation: true,

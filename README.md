@@ -1,84 +1,92 @@
-## GiftSeeker
+# Dropushko (Дропушек)
 
-> App for automatically participate in raffles on different websites.  
-> Program developed like a Node.js application. Electron used for UI only.
+*(English | [Русский](README.ru.md))*
 
-##### Supported websites
+> An automated assistant application designed to automatically participate in public game giveaways and loot draws on various gaming websites.
+> The program is developed using Node.js, featuring an ultra-premium visual desktop interface built with Electron.
 
-- steamgifts.com
-- indiegala.com
-- opiumpulses.com
-- astats.nl
+This project is a heavily redesigned, rebranded, and modernized fork of the original **GiftSeeker** application (originally created by Alexander Pinashin / CodeSprut).
 
-## Setup
+---
 
-If you are an end user, you can download and install application directly from our website [Download Section](https://giftseeker.ru/downloads).
+## 🎮 Supported Websites
 
-## Quick start
+- **gog.com** (Free GOG giveaway claimer integration!)
+- **steamgifts.com** (Featuring global chance-based sorting and page limit limits)
+- **indiegala.com** (Auto-roulette coins spin & customizable cost/level filters)
+- **opiumpulses.com** (Custom points filters and page limits)
+- **mannco.store** (Auto-join loops with stop-on-error features)
 
-Make sure you have [Node.js](https://nodejs.org/) **>= 14.15.3** installed, then type the following commands.
+---
 
-1. `git clone https://github.com/codesprut/giftseeker.git`
-2. `cd giftseeker`
-3. `npm install`
-4. `npm run start:ui` or `npm run start:cli`
+## 📦 Installation & Download
 
-Now you have a running `desktop` or `cli` application on your screen.
+You can find pre-built binaries (both the standard Windows **Installer** `.exe` and the 100% self-contained **Portable** build) inside the Releases section:
+🔗 [Dropushko Releases](https://github.com/Erridian/giftseeker/releases)
 
-## Structure of the project
+---
 
-The application located in the `src` directory which consists of the following main folders:
+## 🛠️ For Developers (Running from Source)
 
-- `core` - node.js modules with main app features.
-- `modules` - useful independent modules. For example, a storage module.
-- `electron` - serves as the app UI using the APIs provided by app modules.
-- `console` - cli program implementation.
-- `resources` - contains common static files.
+To run the application from source code, make sure you have the following prerequisites installed:
+- [Node.js](https://nodejs.org/) version **>= 14.15.3**
+- [Git](https://git-scm.com/install/windows) client for cloning
 
-## Testing
+### Step-by-Step Launch:
 
-Run all tests:
+1. Clone the project repository:
+   ```shell
+   git clone https://github.com/Erridian/giftseeker.git
+   ```
+2. Navigate into the project folder:
+   ```shell
+   cd giftseeker
+   ```
+3. Install project dependencies:
+   ```shell
+   npm install
+   ```
+4. Start the application:
+   - For the graphic **Desktop UI**:
+     ```shell
+     npm run start:ui
+     ```
+   - For the lightweight background **CLI daemon**:
+     ```shell
+     npm run start:cli
+     ```
 
-```shell
-npm run test
-```
+---
 
-## Build
+## 🏗️ Packaging & Compilation
 
-We use [electron-builder](https://github.com/electron-userland/electron-builder) module to build our application.
+We use [electron-builder](https://github.com/electron-userland/electron-builder) under the hood to compile and bundle the project into release-ready binaries.
 
-**Use follow commands to build the app:**
+Use the following NPM scripts to compile the application:
 
-Package in a distributable format (e.g. dmg, Windows installer, deb package)
+- **Build standard Windows Installer (.exe):**
+  ```shell
+  npm run dist:win
+  ```
+- **Build truly self-contained Portable Version (single-file):**
+  ```shell
+  npm run dist:portable
+  ```
 
-```shell
-npm run dist:mac
-npm run dist:win
-npm run dist:linux
-```
+---
 
-The build process compiles the content of the `src` and `node_modules` directories.
+## 💜 Support, News & Contacts
 
-## Feedback
+Stay up to date with new releases, features, and fork updates:
+- 📢 **Telegram (News & Releases):** [Dropushko/GiftSeeker Fork by Erridian](https://t.me/GiftSeeker_Fork_Erridian)
+- 💬 **VK Group:** [VK: GiftSeeker_Fork_Erridian](https://vk.com/club236495182)  
+- ☕ **Financial Support (DonationAlerts):** [Support Erridian](https://www.donationalerts.com/r/erridian)
 
-Any questions or suggestions?
+---
 
-Here's a list of different ways to me and request help:
+## 📜 Credits & License
 
-- Report bugs and submit feature requests to [GitHub issues](https://github.com/codesprut/giftSeeker/issues)
-- And do not forget to join our [Discord server](https://discord.gg/SKYr8z5)!
+- Original application core, engine concepts, and early designs by Alexander Pinashin ([CodeSprut](https://github.com/codesprut)).
+- Rebranding, UI visual modernization, GOG claimer, isolated portable storage caching, and logic overhaul by [Erridian](https://github.com/Erridian).
 
-## Support - help us to grow ;)
-
-- Star ☆ this project repository
-- Join our communities on [vk.com](https://vk.com/giftseeker_ru) and [steamcommunity.com](https://steamcommunity.com/groups/GiftSeeker)
-
-## Contributing
-
-Contributions are always welcome!
-
-By participating in this project you agree to abide by [contributor code of conduct](code-of-conduct.md) terms.
-
-## License
-
-MIT ©
+This project is licensed under the **MIT License**.

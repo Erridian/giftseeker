@@ -21,10 +21,14 @@ ipcRenderer.on("user-logout", () => {
 });
 
 ipcRenderer.on("window-initial-data", async (event, data) => {
-  const { steamUrl, translations } = data;
+  const { steamUrl, translations, settings } = data;
 
   updatePagePhrases(translations.phrases);
   initTranslationSelector(translations);
+
+  if (settings && settings.light_theme) {
+    document.body.classList.add("light-theme");
+  }
 
   authButton.classList.add("disabled");
   setAuthStatus("auth.check");

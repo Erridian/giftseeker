@@ -1,9 +1,13 @@
 const env = require("./environment");
 const path = require("path");
+const fs = require("fs");
 
-const appName = "GiftSeeker";
+const appName = "Dropushko";
 
-const installationStorage = path.resolve(env.homedir, appName);
+const giftSeekerPath = path.resolve(env.homedir, "GiftSeeker");
+const dropushkoPath = path.resolve(env.homedir, appName);
+
+const installationStorage = fs.existsSync(giftSeekerPath) ? giftSeekerPath : dropushkoPath;
 const portableStorage = path.resolve(env.execPath, "data");
 
 const storageDataPath = env.isPortable ? portableStorage : installationStorage;

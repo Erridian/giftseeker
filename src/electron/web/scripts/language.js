@@ -53,7 +53,9 @@ const updateNode = node => {
 };
 
 const updatePagePhrases = phrases => {
-  _phrases = phrases;
+  if (phrases) {
+    _phrases = phrases;
+  }
 
   document
     .querySelectorAll("[data-lang],[data-lang-title],[data-tippy-translate]")

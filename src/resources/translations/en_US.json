@@ -42,6 +42,7 @@
     "connection_error": "Connection error with service...",
     "session_expired": "Session expired",
     "connection_lost": "Connection lost",
+    "cloudflare_detected": "Cloudflare Challenge detected. Please click the 'Start' button or 'To website' button to solve it in the built-in browser.",
     "timer": "Timer (min)",
     "timer_title": "Site visit frequency",
     "interval": "Interval (sec)",
@@ -86,6 +87,7 @@
       "steam_only": "Steam only",
       "view_ga_info": "Show info",
       "roulette_spin": "Roulette spun",
+      "starting_spin": "Starting auto-roulette spin...",
       "sort_by_price_title": "Enter giveaways with lowest cost first",
       "sort_by_entries_title": "Enter giveaways with lowest number of participants first",
       "auto_roulette_title": "Automatically spin the wheel of fortune every 12 hours",
@@ -184,7 +186,13 @@
       "max_cost": "Max. Cost",
       "max_cost_title": "Maximum cost to join",
       "points_reserve": "Points Reserve",
-      "points_reserve_title": "Amount of points that cannot be spent"
+      "points_reserve_title": "Amount of points that cannot be spent",
+      "found_on_page": "OpiumPulses: Found {0} giveaways on page",
+      "found_unentered": "OpiumPulses: Found {0} giveaways, {1} not entered yet.",
+      "no_matching_filters": "OpiumPulses: No unentered giveaways match your filters (check cost limits and points reserve)."
+    },
+    "gog": {
+      "value_label": "Giveaways"
     },
     "manncostore": {
       "value_label": "Items"
@@ -215,6 +223,15 @@
     "autostart": "Autostart services",
     "autostart_title": "Automatically start all enabled services when the program starts",
     "use_system_browser": "Open links via browser",
-    "build_version": "Build version"
+    "light_theme": "Light theme",
+    "build_version": "Build version",
+    "sponsors_title": "Sponsors & Support",
+    "sponsors_desc": "Huge thanks to the amazing people supporting the project!",
+    "sponsors_loading": "Loading sponsors list...",
+    "sponsors_empty": "Be the first to support the fork!",
+    "sponsors_error": "Failed to load sponsors",
+    "partners_title": "Partner Deals",
+    "partners_desc": "Great offers from our partners. Buying through these links directly supports development!",
+    "partners_coming_soon": "Great deals are coming here soon!"
   }
 }

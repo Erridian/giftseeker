@@ -323,8 +323,11 @@ module.exports = class BaseService {
   }
 
   async stop(withError, reconnect) {
+    clearTimeout(this.reconnectTimeout);
+    this.reconnectTimeout = null;
+
     const state = withError ? runningState.ERROR : runningState.PAUSED;
-    if (!this.isStarted()) {
+    if (this.state === runningState.PAUSED) {
       return false;
     }
 

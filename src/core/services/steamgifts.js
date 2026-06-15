@@ -8,12 +8,19 @@ const settingType = require("./settings/setting-type.enum");
 
 class SteamGifts extends BaseService {
   constructor(settingsStorage, params, session) {
-    super(settingsStorage, Object.assign({
-      websiteUrl: "https://www.steamgifts.com",
-      authPageUrl: "https://www.steamgifts.com/?login",
-      winsPageUrl: "https://www.steamgifts.com/giveaways/won",
-      authContent: "Account",
-    }, params), session);
+    super(
+      settingsStorage,
+      Object.assign(
+        {
+          websiteUrl: "https://www.steamgifts.com",
+          authPageUrl: "https://www.steamgifts.com/?login",
+          winsPageUrl: "https://www.steamgifts.com/giveaways/won",
+          authContent: "Account",
+        },
+        params,
+      ),
+      session,
+    );
 
     this.settings.points_reserve = {
       type: settingType.INTEGER,
@@ -195,10 +202,7 @@ class SteamGifts extends BaseService {
           response.data.includes("Выполнение проверки безопасности");
 
         if (isCloudflare) {
-          this.log(
-            `Cloudflare Challenge detected [${title}]. Please click the Settings gear icon (⚙️) to solve it.`,
-            3,
-          );
+          this.log(translation.get("service.cloudflare_detected"), 3);
           return authState.NOT_AUTHORIZED;
         }
 
@@ -216,11 +220,17 @@ class SteamGifts extends BaseService {
         if (!userPointNode) {
           const loginNode = document.querySelector(".nav__sits");
           if (loginNode) {
-            console.log("[SteamGifts] Points not found, login button detected. User is not logged in.");
+            console.log(
+              "[SteamGifts] Points not found, login button detected. User is not logged in.",
+            );
           } else {
-            console.log("[SteamGifts] Neither points nor login button found. Page structure might have changed or access is blocked.");
+            console.log(
+              "[SteamGifts] Neither points nor login button found. Page structure might have changed or access is blocked.",
+            );
             if (response.data.length < 500) {
-              console.log(`[SteamGifts] Response too short (${response.data.length} chars). Possible block or error.`);
+              console.log(
+                `[SteamGifts] Response too short (${response.data.length} chars). Possible block or error.`,
+              );
             }
           }
         }
@@ -281,96 +291,116 @@ class SteamGifts extends BaseService {
   }
 
   async seekService() {
-    await this.enterOnPage(
-      "https://www.steamgifts.com/giveaways/search?type=wishlist",
-      "wishlist",
-    );
+    this.xsrfToken = null;
+    let giveaways = [];
+
+    // 1. Fetch wishlist giveaways if not group_only
+    if (!this.getConfig("group_only")) {
+      const wishlistGa = await this.fetchPage(
+        "https://www.steamgifts.com/giveaways/search?type=wishlist",
+        "wishlist",
+      );
+      giveaways = [...giveaways, ...wishlistGa];
+    }
 
     if (this.getConfig("wishlist_only")) {
-      return;
-    }
-    
-    await this.entryInterval();
-
-    await this.enterOnPage(
-      "https://www.steamgifts.com/giveaways/search?type=group",
-      "group",
-    );
-
-    if (this.getConfig("group_only")) {
-      return;
-    }
-
-    let currentPage = 1;
-    const processPages = this.getConfig("pages", 1);
-
-    if (processPages > 0) {
-      await this.entryInterval();
-    }
-
-    while (currentPage <= processPages) {
-      await this.enterOnPage(
-        `https://www.steamgifts.com/giveaways/search?page=${currentPage}`,
-        "public",
-      );
-      
-      if (currentPage < processPages) {
-         await this.entryInterval();
+      // If wishlist_only, stop fetching other pages
+    } else {
+      // Fetch group giveaways if not wishlist_only
+      if (!this.getConfig("wishlist_only")) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const groupGa = await this.fetchPage(
+          "https://www.steamgifts.com/giveaways/search?type=group",
+          "group",
+        );
+        giveaways = [...giveaways, ...groupGa];
       }
-      currentPage++;
+
+      // Fetch public giveaways if not group_only
+      if (!this.getConfig("group_only")) {
+        let currentPage = 1;
+        const processPages = this.getConfig("pages", 1);
+        while (currentPage <= processPages) {
+          if (!this.isStarted()) {
+            return;
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const publicGa = await this.fetchPage(
+            `https://www.steamgifts.com/giveaways/search?page=${currentPage}`,
+            "public",
+          );
+          giveaways = [...giveaways, ...publicGa];
+          currentPage++;
+        }
+      }
     }
-  }
 
-  async enterOnPage(pageUrl, pageType) {
-    const document = await this.http.get(pageUrl).then(res => parse(res.data));
-
-    const xsrfNode = document
-      .querySelectorAll("input")
-      .filter(node => node.getAttribute("name") === "xsrf_token")[0];
-    const xsrfToken = xsrfNode ? xsrfNode.getAttribute("value") : null;
-
-    if (!xsrfToken) {
-      this.log("Could not find xsrf_token on the page.", 3); // logSeverity.ERROR is 3
-      return;
+    // Filter duplicates by giveaway code
+    const uniqueGiveaways = [];
+    const seenCodes = new Set();
+    for (const ga of giveaways) {
+      if (ga && !seenCodes.has(ga.code)) {
+        seenCodes.add(ga.code);
+        uniqueGiveaways.push(ga);
+      }
     }
 
-    let giveaways = this.extractGiveaways(document).map(ga => ({
-      ...ga,
-      pageType,
-    }));
+    // Sort the global list of giveaways
+    let sortedGiveaways = uniqueGiveaways;
 
     if (this.getConfig("sort_by_chance", false)) {
-      giveaways.sort((a, b) => b.winChance - a.winChance);
+      sortedGiveaways.sort((a, b) => b.winChance - a.winChance);
     }
     if (this.getConfig("sort_by_level", false)) {
-      giveaways.sort((a, b) => b.levelRequired - a.levelRequired);
+      sortedGiveaways.sort((a, b) => b.levelRequired - a.levelRequired);
     }
     if (this.getConfig("sort_by_copies", false)) {
-      giveaways.sort((a, b) => b.copies - a.copies);
+      sortedGiveaways.sort((a, b) => b.copies - a.copies);
     }
 
     if (this.getConfig("multiple_first", false)) {
-      const mult = giveaways.filter(it => it.copies > 1);
-      const single = giveaways.filter(it => it.copies === 1);
-      giveaways = [...mult, ...single];
+      const mult = sortedGiveaways.filter(it => it.copies > 1);
+      const single = sortedGiveaways.filter(it => it.copies === 1);
+      sortedGiveaways = [...mult, ...single];
     }
     if (this.getConfig("whitelist_first", false)) {
-      const white = giveaways.filter(it => it.whitelist);
-      const other = giveaways.filter(it => !it.whitelist);
-      giveaways = [...white, ...other];
+      const white = sortedGiveaways.filter(it => it.whitelist);
+      const other = sortedGiveaways.filter(it => !it.whitelist);
+      sortedGiveaways = [...white, ...other];
     }
     if (this.getConfig("group_first", false)) {
-      const groups = giveaways.filter(it => it.pageType === "group");
-      const other = giveaways.filter(it => it.pageType !== "group");
-      giveaways = [...groups, ...other];
+      const groups = sortedGiveaways.filter(it => it.pageType === "group");
+      const other = sortedGiveaways.filter(it => it.pageType !== "group");
+      sortedGiveaways = [...groups, ...other];
     }
     if (this.getConfig("wishlist_first", false)) {
-      const wish = giveaways.filter(it => it.pageType === "wishlist");
-      const other = giveaways.filter(it => it.pageType !== "wishlist");
-      giveaways = [...wish, ...other];
+      const wish = sortedGiveaways.filter(it => it.pageType === "wishlist");
+      const other = sortedGiveaways.filter(it => it.pageType !== "wishlist");
+      sortedGiveaways = [...wish, ...other];
     }
 
-    for (const giveaway of giveaways) {
+    if (sortedGiveaways.length === 0) {
+      return;
+    }
+
+    if (!this.xsrfToken) {
+      // If we couldn't get the xsrf_token during page fetching, try fetching the home page
+      const document = await this.http
+        .get(this.websiteUrl)
+        .then(res => parse(res.data));
+      const xsrfNode = document
+        .querySelectorAll("input")
+        .filter(node => node.getAttribute("name") === "xsrf_token")[0];
+      this.xsrfToken = xsrfNode ? xsrfNode.getAttribute("value") : null;
+    }
+
+    if (!this.xsrfToken) {
+      this.log("Could not find xsrf_token on the page.", 3);
+      return;
+    }
+
+    // Now enter giveaways!
+    for (const giveaway of sortedGiveaways) {
       if (!this.isStarted()) {
         return;
       }
@@ -378,15 +408,14 @@ class SteamGifts extends BaseService {
         continue;
       }
 
-      const entry = await this.enterGiveaway(giveaway, xsrfToken);
+      const entry = await this.enterGiveaway(giveaway, this.xsrfToken);
 
       if (entry.success) {
         this.setValue(entry.points);
         this.log({
           text: `${translation.get(
             "service.entered_in",
-          )} #link#. ${this.translate("cost")} ${giveaway.cost
-            } ${this.translate("chance")} ${giveaway.winChance}%`,
+          )} #link#. ${this.translate("cost")} ${giveaway.cost} ${this.translate("chance")} ${giveaway.winChance}%`,
           anchor: giveaway.name,
           url: `${this.websiteUrl}${giveaway.url}`,
         });
@@ -395,7 +424,29 @@ class SteamGifts extends BaseService {
     }
   }
 
-  canEnterGiveaway(giveaway, wishlistPage) {
+  async fetchPage(pageUrl, pageType) {
+    try {
+      const response = await this.http.get(pageUrl);
+      const document = parse(response.data);
+
+      const xsrfNode = document
+        .querySelectorAll("input")
+        .filter(node => node.getAttribute("name") === "xsrf_token")[0];
+      if (xsrfNode) {
+        this.xsrfToken = xsrfNode.getAttribute("value");
+      }
+
+      return this.extractGiveaways(document).map(ga => ({
+        ...ga,
+        pageType,
+      }));
+    } catch (err) {
+      this.log(`Error fetching page ${pageUrl}: ${err.message}`, 3);
+      return [];
+    }
+  }
+
+  canEnterGiveaway(giveaway) {
     const minEntryChance = this.getConfig("min_chance", 0);
     const minTimeLeft = this.getConfig("ending", 0) * 60;
     const minEntryLevel = this.getConfig("min_level", 0);
@@ -536,11 +587,11 @@ class SteamGifts extends BaseService {
       entered: !!htmlNode.querySelector(".giveaway__row-inner-wrap.is-faded"),
       winChance: this.calculateWinChance(copies, entries),
       whitelist: !!htmlNode.querySelector(".fa-star"),
-      isDLC: steamUrl.includes("app/") && (
-        linkNode.structuredText.toLowerCase().includes("dlc") ||
-        linkNode.structuredText.toLowerCase().includes("expansion") ||
-        linkNode.structuredText.toLowerCase().includes("addon")
-      ),
+      isDLC:
+        steamUrl.includes("app/") &&
+        (linkNode.structuredText.toLowerCase().includes("dlc") ||
+          linkNode.structuredText.toLowerCase().includes("expansion") ||
+          linkNode.structuredText.toLowerCase().includes("addon")),
     };
   }
 

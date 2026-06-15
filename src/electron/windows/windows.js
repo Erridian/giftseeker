@@ -53,7 +53,7 @@ const init = settings => {
     maxWidth: width.max,
     minHeight: height.min,
     maxHeight: height.max,
-    backgroundColor: "#111b29",
+    backgroundColor: "#07070b",
     title: appName,
     icon: appIcon,
     show: false,

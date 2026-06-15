@@ -30,6 +30,19 @@ try {
   const path = require("path");
   storage.setDataPath(config.storageDataPath);
 
+  let userDataPath = null;
+  if (ENV.isPortable) {
+    userDataPath = path.resolve(config.storageDataPath, "electron_cache");
+  } else {
+    // Backward compatibility for Electron's Chromium session cache and cookies:
+    // If the legacy GiftSeeker appData folder exists, continue using it to keep sessions active.
+    const appDataPath = app.getPath("appData");
+    const legacyElectronUserData = path.resolve(appDataPath, "GiftSeeker");
+    if (fs.existsSync(legacyElectronUserData)) {
+      userDataPath = legacyElectronUserData;
+    }
+  }
+
   const settingsFile = path.resolve(
     config.storageDataPath,
     "electron.settings.json",
@@ -46,10 +59,12 @@ try {
       typeof parsed.user_data_path === "string" &&
       parsed.user_data_path.trim() !== ""
     ) {
-      const customPath = path.normalize(parsed.user_data_path.trim());
-      // Prevent recursive loop if they set it to the old default path or something weird, but Electron should handle it.
-      app.setPath("userData", customPath);
+      userDataPath = path.normalize(parsed.user_data_path.trim());
     }
+  }
+
+  if (userDataPath) {
+    app.setPath("userData", userDataPath);
   }
 } catch (err) {
   // Ignore filesystem or permission errors silently
@@ -84,7 +99,9 @@ try {
   app.on("ready", async () => {
     const settings = await Settings.build("electron", config.defaultSettings);
     const session = sessionConstructor.create(settings, config.appName);
-    const services = Services.map(service => new service(settings, {}, session));
+    const services = Services.map(
+      service => new service(settings, {}, session),
+    );
 
     settings.on("change", "start_with_os", autoStart.set);
     autoStart.set(settings.get("start_with_os"));
@@ -125,7 +142,7 @@ try {
     ipcMain.on("service-button-pressed", async ({ sender }, serviceName) => {
       const service = services.find(service => service.name === serviceName);
 
-      if (service.isStarted()) {
+      if (service.isStarted() || service.state === "error") {
         await service.stop();
       } else {
         const authState = await service.start();
@@ -212,7 +229,9 @@ try {
         }
         retries--;
         if (retries > 0) {
-          console.log(`[Main] Session check failed with error. Retrying... (${retries} left)`);
+          console.log(
+            `[Main] Session check failed with error. Retrying... (${retries} left)`,
+          );
           await new Promise(resolve => setTimeout(resolve, 5000));
         }
       }
@@ -225,12 +244,16 @@ try {
         console.log(`[Main] Session check failed (${sessionCheckFailures}/3).`);
 
         if (sessionCheckFailures >= 3) {
-          console.log("[Main] Session check failed definitively (Not Logged In). Triggering logout.");
+          console.log(
+            "[Main] Session check failed definitively (Not Logged In). Triggering logout.",
+          );
           logout();
           sessionCheckFailures = 0;
         }
       } else {
-        console.log("[Main] Session check failed due to repeated errors. Skipping logout.");
+        console.log(
+          "[Main] Session check failed due to repeated errors. Skipping logout.",
+        );
       }
     });
 

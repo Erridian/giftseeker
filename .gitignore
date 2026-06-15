@@ -10,6 +10,7 @@ dist/
 
 # Temporary/Old files
 giftseeker-old/
+mobile/
 .git.zip
 giftseeker-master.7z
 
@@ -20,3 +21,6 @@ Thumbs.db
 # Private config (if any)
 config.json
 settings.json
+
+# Local documentation
+GIT_GUIDE.md

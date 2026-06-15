@@ -11,7 +11,7 @@ const renderUserInfo = userInfo => {
 };
 
 const initSettingsSection = initialData => {
-  const { currentBuild, steamUrl, translations, settings } = initialData;
+  const { currentBuild, translations, settings } = initialData;
 
   initTranslationSelector(translations);
 
@@ -46,7 +46,8 @@ const initSettingsSection = initialData => {
 
   const erridianDonationLink = document.createElement("button");
   erridianDonationLink.classList.add("open-website");
-  erridianDonationLink.dataset.link = "https://www.donationalerts.com/r/erridian";
+  erridianDonationLink.dataset.link =
+    "https://www.donationalerts.com/r/erridian";
   erridianDonationLink.dataset.lang = "settings.support_fork";
   erridianDonationLink.style.marginLeft = "7px";
 
@@ -85,6 +86,82 @@ const initSettingsSection = initialData => {
         }
       };
     });
+
+  const lightThemeCheckbox = document.querySelector("input#light_theme");
+  const applyTheme = isLight => {
+    if (isLight) {
+      document.body.classList.add("light-theme");
+    } else {
+      document.body.classList.remove("light-theme");
+    }
+  };
+
+  if (lightThemeCheckbox) {
+    applyTheme(settings.light_theme);
+    const originalOnChange = lightThemeCheckbox.onchange;
+    lightThemeCheckbox.onchange = () => {
+      applyTheme(lightThemeCheckbox.checked);
+      if (originalOnChange) {
+        originalOnChange();
+      }
+    };
+  }
+
+  const loadSponsors = async () => {
+    const container = document.getElementById("sponsors-container");
+    if (!container) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        "https://raw.githubusercontent.com/Erridian/giftseeker/main/sponsors.json",
+        { cache: "no-store" },
+      );
+
+      if (!response.ok) {
+        throw new Error("HTTP error " + response.status);
+      }
+
+      const data = await response.json();
+      container.innerHTML = "";
+
+      if (!data || !data.top_sponsors || data.top_sponsors.length === 0) {
+        const emptyDiv = document.createElement("div");
+        emptyDiv.className = "sponsors-empty";
+        emptyDiv.dataset.lang = "settings.sponsors_empty";
+        container.appendChild(emptyDiv);
+      } else {
+        data.top_sponsors.forEach(sp => {
+          const item = document.createElement("div");
+          const tier = sp.badge ? sp.badge.toLowerCase() : "normal";
+          item.className = `sponsor-item ${tier}`;
+
+          let icon = "fa-heart";
+          if (tier === "gold") {
+            icon = "fa-crown";
+          } else if (tier === "silver") {
+            icon = "fa-star";
+          } else if (tier === "bronze") {
+            icon = "fa-medal";
+          }
+
+          item.innerHTML = `<i class="fas ${icon}"></i> <span>${sp.name}</span>`;
+          container.appendChild(item);
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load sponsors list:", err);
+      container.innerHTML = "";
+      const errorDiv = document.createElement("div");
+      errorDiv.className = "sponsors-error";
+      errorDiv.dataset.lang = "settings.sponsors_error";
+      container.appendChild(errorDiv);
+    }
+    updatePagePhrases();
+  };
+
+  loadSponsors();
 };
 
 const initServicesSwitcher = settings => {

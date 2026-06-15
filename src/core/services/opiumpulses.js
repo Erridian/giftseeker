@@ -2,21 +2,26 @@ const { parse } = require("node-html-parser");
 
 const BaseService = require("./base-service");
 const translation = require("../../modules/translation");
-const runningState = require("../running-state.enum");
 const settingType = require("./settings/setting-type.enum");
 
 class OpiumPulses extends BaseService {
   constructor(settingsStorage, params, session) {
-    super(settingsStorage, Object.assign({
-      websiteUrl: "https://www.opiumpulses.com",
-      authPageUrl: "https://www.opiumpulses.com/site/login",
-      winsPageUrl: "https://www.opiumpulses.com/user/giveawaykeys",
-      authCheckUrl: "https://www.opiumpulses.com/",
-      authContent: "/site/logout",
-    }, params), session);
+    super(
+      settingsStorage,
+      Object.assign(
+        {
+          websiteUrl: "https://www.opiumpulses.com",
+          authPageUrl: "https://www.opiumpulses.com/site/login",
+          winsPageUrl: "https://www.opiumpulses.com/user/giveawaykeys",
+          authCheckUrl: "https://www.opiumpulses.com/",
+          authContent: "/site/logout",
+        },
+        params,
+      ),
+      session,
+    );
 
     delete this.settings.pages;
-
 
     this.settings.min_cost = {
       type: settingType.INTEGER,
@@ -71,17 +76,17 @@ class OpiumPulses extends BaseService {
       const document = parse(response.data);
       const items = document.querySelectorAll(".giveaways-page-item");
 
-      this.log(`OpiumPulses: Found ${items.length} giveaways on page`);
+      this.log(
+        translation.get(this.translationKey("found_on_page"), items.length),
+      );
 
-      const giveawaysRaw = items
-        .map(htmlNode => {
-          try {
-            return this.parseGiveaway(htmlNode);
-          } catch (e) {
-            return null;
-          }
-        })
-      const totalParsed = giveawaysRaw.length;
+      const giveawaysRaw = items.map(htmlNode => {
+        try {
+          return this.parseGiveaway(htmlNode);
+        } catch (e) {
+          return null;
+        }
+      });
       const unentered = giveawaysRaw.filter(ga => ga && !ga.entered).length;
       const giveaways = giveawaysRaw.filter(ga => {
         if (!ga || ga.entered) {
@@ -100,9 +105,15 @@ class OpiumPulses extends BaseService {
         return canAfford && costLimitPass;
       });
 
-      this.log(`OpiumPulses: Found ${items.length} giveaways, ${unentered} not entered yet.`);
+      this.log(
+        translation.get(
+          this.translationKey("found_unentered"),
+          items.length,
+          unentered,
+        ),
+      );
       if (giveaways.length === 0 && unentered > 0) {
-        this.log(`OpiumPulses: No unentered giveaways match your filters (check cost limits and points reserve).`);
+        this.log(translation.get(this.translationKey("no_matching_filters")));
       }
 
       for (const giveaway of giveaways) {
@@ -153,7 +164,9 @@ class OpiumPulses extends BaseService {
     const costText = pointsNode ? pointsNode.structuredText : "0";
     const cost = Number(costText.replace(/[^0-9]/g, ""));
 
-    const enterBtn = htmlNode.querySelector(".giveaways-page-item-img-btn-enter");
+    const enterBtn = htmlNode.querySelector(
+      ".giveaways-page-item-img-btn-enter",
+    );
     const onClickAttr = enterBtn ? enterBtn.getAttribute("onClick") : "";
     const checkUser = entered
       ? false
@@ -187,7 +200,7 @@ class OpiumPulses extends BaseService {
 
     return this.http
       .get(`${this.websiteUrl}/giveaways/enter/${giveaway.code}`)
-      .then(async (response) => {
+      .then(async response => {
         const { data, status } = response;
         const responseData =
           typeof data === "object" ? JSON.stringify(data) : data || "";
@@ -214,7 +227,8 @@ class OpiumPulses extends BaseService {
             : "";
 
           const hasEnteredText =
-            infoText.indexOf("entered") >= 0 || infoText.indexOf("success") >= 0;
+            infoText.indexOf("entered") >= 0 ||
+            infoText.indexOf("success") >= 0;
           const hasRemoveText = infoText.indexOf("remove") >= 0;
           const isNotEligible = infoText.indexOf("eligible") >= 0;
 
@@ -227,7 +241,10 @@ class OpiumPulses extends BaseService {
           }
         }
 
-        if (!success && responseData.toLowerCase().indexOf("already entered") >= 0) {
+        if (
+          !success &&
+          responseData.toLowerCase().indexOf("already entered") >= 0
+        ) {
           giveaway.entered = true;
           this.log(
             translation.get("service.already_entered") + ` (${giveaway.name})`,
@@ -236,7 +253,7 @@ class OpiumPulses extends BaseService {
 
         return success;
       })
-      .catch((err) => {
+      .catch(err => {
         this.log(`OpiumPulses enter error: ${err.message}`);
         return false;
       });

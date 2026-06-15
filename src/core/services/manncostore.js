@@ -28,7 +28,7 @@ class ManncoStore extends BaseService {
                     res.data.includes("challenge-running");
 
                 if (isCloudflare) {
-                    this.log("Cloudflare Challenge detected. Please click the Settings gear icon (⚙️) to solve it.", 3);
+                    this.log(translation.get("service.cloudflare_detected"), 3);
                     return authState.NOT_AUTHORIZED;
                 }
 

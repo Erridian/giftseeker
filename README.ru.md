@@ -1,53 +1,91 @@
-# GiftSeeker
+# Dropushko (Дропушек)
 
 *([English](README.md) | Русский)*
 
 > Приложение для автоматического участия в розыгрышах игр на различных сайтах.  
 > Программа разработана на Node.js. Интерфейс построен на базе Electron.
 
-## Поддерживаемые сайты
+Этот проект является глубоко переработанным, визуально модернизированным и ребрендированным форком оригинального приложения **GiftSeeker** (созданного Александром Пинашиным / CodeSprut).
 
-- steamgifts.com
-- indiegala.com
-- opiumpulses.com
-- mannco.store
+---
 
-## Установка
+## 🎮 Поддерживаемые сайты
+
+- **gog.com** (Полная автоматическая сборка бесплатных раздач GOG!)
+- **steamgifts.com** (С глобальной сортировкой по шансу победы и ограничением страниц)
+- **indiegala.com** (Автоматическое колесо GalaCoins и гибкие фильтры стоимости/уровня)
+- **opiumpulses.com** (Custom-фильтры поинтов и страниц)
+- **mannco.store** (Циклы авто-вступления с остановкой при ошибках)
+
+---
+
+## 📦 Установка
 
 Вы можете найти готовый Установщик (.exe) и Portable-версию в разделе Releases:
-https://github.com/Erridian/giftseeker/releases
+🔗 [Релизы Dropushko / Дропушек](https://github.com/Erridian/giftseeker/releases)
 
-## Для разработчиков (Запуск исходного кода)
+---
+
+## 🛠️ Для разработчиков (Запуск исходного кода)
 
 Вам потребуется скачать [Node.js](https://nodejs.org/) версии **>= 14.15.3**.
 Для скачивания приложения через консоль должен быть установлен [Git](https://git-scm.com/install/windows).
 
-1. `git clone https://github.com/Erridian/giftseeker.git`
-2. `cd giftseeker`
-3. `npm install`
-4. `npm run start:ui` или `npm run start:cli`
+### Инструкция по запуску:
 
-После этого перед вами откроется десктопная или консольная версия.
+1. Клонировать репозиторий:
+   ```shell
+   git clone https://github.com/Erridian/giftseeker.git
+   ```
+2. Перейти в директорию проекта:
+   ```shell
+   cd giftseeker
+   ```
+3. Установить зависимости:
+   ```shell
+   npm install
+   ```
+4. Запустить приложение:
+   - Для графической **десктопной версии**:
+     ```shell
+     npm run start:ui
+     ```
+   - Для фонового консольного **CLI-бота**:
+     ```shell
+     npm run start:cli
+     ```
 
-## Компиляция (.exe)
+---
 
-Для сборки проекта в исполняемые установщики используется пакет [electron-builder](https://github.com/electron-userland/electron-builder).
+## 🏗️ Компиляция (.exe)
+
+Для сборки проекта в исполняемые файлы используется пакет [electron-builder](https://github.com/electron-userland/electron-builder).
 
 **Используйте следующие команды:**
 
-- Сборка стандартного Windows Установщика:
-```shell
-npm run dist:win
-```
-- Сборка Portable-приложения одним файлом (без установки):
-```shell
-npm run dist:portable
-```
+- **Сборка стандартного Windows Установщика (.exe):**
+  ```shell
+  npm run dist:win
+  ```
+- **Сборка полностью автономного Portable-приложения (один файл):**
+  ```shell
+  npm run dist:portable
+  ```
 
-## Поддержка и Новости проекта
+---
 
-Следить за новыми версиями и обновлениями форка можно в Telegram-канале:
-[Telegram: GiftSeeker_Fork_Erridian](https://t.me/GiftSeeker_Fork_Erridian)
+## 💜 Поддержка и Новости проекта
 
-Связь со мной (ВК): https://vk.com/erridian  
-Поддержать финансово (DonationAlerts): https://www.donationalerts.com/r/erridian
+Следить за новыми версиями и обновлениями форка можно в группе ВК и Telegram-канале:
+- 📢 **Telegram-канал:** [Telegram: GiftSeeker_Fork_Erridian](https://t.me/GiftSeeker_Fork_Erridian)
+- 💬 **Группа в ВК:** [VK: GiftSeeker_Fork_Erridian](https://vk.com/club236495182)  
+- ☕ **Поддержать финансово (DonationAlerts):** [Донат Erridian](https://www.donationalerts.com/r/erridian)
+
+---
+
+## 📜 Благодарности и Лицензия
+
+- Оригинальное ядро, концепция движка и ранние стили разработаны Александром Пинашиным ([CodeSprut](https://github.com/codesprut)).
+- Редизайн, современная space-violet визуальная тема, авто-забирание GOG, изолированный кэш портативной версии и оптимизации кода выполнены [Erridian](https://github.com/Erridian).
+
+Проект распространяется под открытой лицензией **MIT**.

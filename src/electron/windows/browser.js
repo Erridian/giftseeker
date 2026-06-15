@@ -5,7 +5,7 @@ const create = (session, parentWindow, onClose) => {
   const window = new BrowserWindow({
     parent: parentWindow,
     icon: appIcon,
-    title: "GS Browser",
+    title: "Dropushko Browser",
     width: 1024,
     height: 700,
     minWidth: 600,
@@ -41,7 +41,7 @@ const create = (session, parentWindow, onClose) => {
     }
 
     window.loadURL(url);
-    window.setTitle("GS Browser");
+    window.setTitle("Dropushko Browser");
 
     window.show();
   };

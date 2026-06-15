@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>GiftSeeker</title>
+    <title>Dropushko</title>
     <link
       href="https://use.fontawesome.com/releases/v5.0.8/css/all.css"
       rel="stylesheet"
@@ -61,12 +61,34 @@
         <div class="services-panels"></div>
       </div>
       <div class="content-item" data-menu-id="settings">
-        <div class="left-side">
+        <div class="left-side styled-scrollbar">
           <label for="useragent">UserAgent</label>
           <textarea id="useragent"></textarea>
           <label for="user_data_path" data-lang="settings.user_data_path" style="margin-top: 10px;"></label>
-          <input type="text" id="user_data_path" placeholder="D:\GiftSeekerData"
+          <input type="text" id="user_data_path" placeholder="D:\DropushkoData"
             style="width: 100%; box-sizing: border-box; padding: 5px; margin-top: 5px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; outline: none; border-radius: 3px;" />
+          
+          <!-- Sponsors & Support -->
+          <div class="sponsors-card">
+            <div class="sponsors-header">
+              <h3 data-lang="settings.sponsors_title"></h3>
+              <p class="section-desc" data-lang="settings.sponsors_desc"></p>
+            </div>
+            <div id="sponsors-container" class="sponsors-container">
+              <div class="sponsors-loading" data-lang="settings.sponsors_loading"></div>
+            </div>
+          </div>
+
+          <!-- Partner Affiliate Deals -->
+          <div class="partners-card">
+            <h3 data-lang="settings.partners_title"></h3>
+            <p class="section-desc" data-lang="settings.partners_desc"></p>
+            <div class="partners-placeholder">
+              <i class="fas fa-hourglass-half placeholder-icon"></i>
+              <span data-lang="settings.partners_coming_soon"></span>
+            </div>
+          </div>
+
           <div class="info-links"></div>
         </div>
         <div class="right-side">
@@ -78,6 +100,14 @@
             <label
               for="use_system_browser"
               data-lang="settings.use_system_browser"
+            >
+            </label>
+          </div>
+          <div class="input-wrap checkbox">
+            <input id="light_theme" class="setter" type="checkbox" />
+            <label
+              for="light_theme"
+              data-lang="settings.light_theme"
             >
             </label>
           </div>
@@ -146,8 +176,9 @@
       document.addEventListener(
         "click",
         ({ target }) => {
-          if (!target.matches(".open-website")) return;
-          if (target.dataset.link) browser.openUrl(target.dataset.link);
+          const openEl = target.matches(".open-website") ? target : target.closest(".open-website");
+          if (!openEl) return;
+          if (openEl.dataset.link) browser.openUrl(openEl.dataset.link);
         },
         false,
       );

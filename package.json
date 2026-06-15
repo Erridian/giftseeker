@@ -1,9 +1,9 @@
 {
-  "name": "giftseeker",
+  "name": "dropushko",
   "version": "2.2.13",
-  "author": "CodeSprut (Fork by Erridian)",
+  "author": "Erridian",
   "license": "MIT",
-  "description": "Automatically join giveaways",
+  "description": "Dropushko (Дропушек) — Automatically claim free games and loot from GOG, SteamGifts, IndieGala, OpiumPulses, and more.",
   "homepage": "https://Erridian.ru/",
   "main": "src/electron/main.js",
   "repository": {
@@ -20,7 +20,7 @@
     "dist:portable": "node build-portable.js",
     "dist:mac": "npm run dist -- MAC",
     "dist:linux": "npm run dist -- LINUX",
-    "lint": "npm run lint:eslint && && npm run lint:prettier",
+    "lint": "npm run lint:eslint && npm run lint:prettier",
     "lint:eslint": "eslint --ignore-path ./.gitignore --ext .ts,.js .",
     "lint:eslint:fix": "eslint --ignore-path ./.gitignore --fix --ext .ts,.js .",
     "lint:prettier": "prettier --ignore-path ./.gitignore --check \"./**/*.{ts,js,json,yaml,yml,md}\"",
