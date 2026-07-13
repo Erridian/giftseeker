@@ -146,7 +146,10 @@ const initSettingsSection = initialData => {
             icon = "fa-medal";
           }
 
-          item.innerHTML = `<i class="fas ${icon}"></i> <span>${sp.name}</span>`;
+          const amountHtml = sp.amount
+            ? ` <span class="sponsor-amount">${sp.amount}</span>`
+            : "";
+          item.innerHTML = `<i class="fas ${icon}"></i> <span>${sp.name}</span>${amountHtml}`;
           container.appendChild(item);
         });
       }

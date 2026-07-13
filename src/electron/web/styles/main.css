@@ -1233,6 +1233,16 @@ button.open-website:hover {
   color: var(--text-main);
 }
 
+.sponsor-amount {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 4px;
+}
+
 /* Partner deals styles */
 .partners-grid {
   display: grid;
