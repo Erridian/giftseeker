@@ -3,11 +3,13 @@ name: Build and Release
 on:
   push:
     tags:
-      - '*' # Trigger on any tag
+      - "*" # Trigger on any tag
 
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -16,8 +18,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-id: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm install
