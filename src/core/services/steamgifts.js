@@ -15,7 +15,7 @@ class SteamGifts extends BaseService {
           websiteUrl: "https://www.steamgifts.com",
           authPageUrl: "https://www.steamgifts.com/?login",
           winsPageUrl: "https://www.steamgifts.com/giveaways/won",
-          authContent: "Account",
+          authContent: "nav__avatar-outer-wrap",
         },
         params,
       ),

@@ -52,9 +52,7 @@ const create = (session, parentWindow, onClose) => {
         window.webContents
           .executeJavaScript('document.querySelector("body").innerHTML')
           .then(html => {
-            if (html.toLowerCase().includes(authContent.toLowerCase()) || 
-                html.includes("180P") || // SteamGifts points
-                html.includes("Level ")) { // SteamGifts level
+            if (html.toLowerCase().includes(authContent.toLowerCase())) {
               clearInterval(checkLogin);
               window.close();
             }

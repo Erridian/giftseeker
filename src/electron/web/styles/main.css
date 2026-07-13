@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap");
 @import url("../../../../node_modules/tippy.js/dist/tippy.css");
 
 :root {
@@ -8,17 +8,17 @@
   --bg-card: rgba(255, 255, 255, 0.03);
   --border-color: rgba(255, 255, 255, 0.06);
   --border-hover: rgba(139, 92, 246, 0.3);
-  
+
   --accent-color: #8b5cf6;
   --accent-glow: rgba(139, 92, 246, 0.3);
   --accent-gradient: linear-gradient(135deg, #8b5cf6, #6366f1);
   --accent-hover-gradient: linear-gradient(135deg, #a78bfa, #818cf8);
-  
+
   --text-main: #f3f4f6;
   --text-muted: #9ca3af;
   --text-dim: #4b5563;
   --text-accent: #a78bfa;
-  
+
   --status-started: #10b981;
   --status-error: #ef4444;
   --status-idle: #6b7280;
@@ -31,12 +31,12 @@ body.light-theme {
   --bg-card: rgba(0, 0, 0, 0.02);
   --border-color: rgba(0, 0, 0, 0.08);
   --border-hover: rgba(139, 92, 246, 0.4);
-  
+
   --text-main: #1f2937;
   --text-muted: #4b5563;
   --text-dim: #9ca3af;
   --text-accent: #6d28d9;
-  
+
   --accent-glow: rgba(109, 40, 217, 0.15);
 }
 
@@ -450,6 +450,11 @@ a:hover {
   background: rgba(139, 92, 246, 0.05);
 }
 
+.content-item[data-menu-id="settings"] .right-side .setter#lang option {
+  background: var(--bg-panel);
+  color: var(--text-main);
+}
+
 .content-item[data-menu-id="settings"] .right-side .build {
   width: 100%;
   position: absolute;
@@ -616,7 +621,7 @@ textarea#useragent:focus {
   right: 12px;
   bottom: 22px;
   transform: none;
-  box-shadow: 0 0 8px rgba(0,0,0,0.5);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
 }
 
 .service-icon .service-state {
@@ -1024,7 +1029,7 @@ textarea#useragent:focus {
   background: center/cover transparent no-repeat;
   border-radius: 50%;
   border: 1px solid var(--border-color);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .service-control-panel .user-info > span {
@@ -1139,7 +1144,8 @@ button.open-website:hover {
   line-height: 1.5;
 }
 
-.sponsors-card, .partners-card {
+.sponsors-card,
+.partners-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
@@ -1151,7 +1157,8 @@ button.open-website:hover {
   -webkit-app-region: no-drag;
 }
 
-.sponsors-card:hover, .partners-card:hover {
+.sponsors-card:hover,
+.partners-card:hover {
   border-color: var(--border-hover);
 }
 
@@ -1167,7 +1174,9 @@ button.open-website:hover {
   align-items: center;
 }
 
-.sponsors-loading, .sponsors-empty, .sponsors-error {
+.sponsors-loading,
+.sponsors-empty,
+.sponsors-error {
   font-size: 13px;
   color: var(--text-muted);
   width: 100%;
@@ -1345,12 +1354,17 @@ body.light-theme .partner-card:hover {
 }
 
 @keyframes rotatePlaceholder {
-  0% { transform: rotate(0deg); }
-  50% { transform: rotate(180deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(180deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 body.light-theme .partners-placeholder {
   background: rgba(0, 0, 0, 0.01);
 }
-
