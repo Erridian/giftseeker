@@ -115,7 +115,7 @@ const initSettingsSection = initialData => {
 
     try {
       const response = await fetch(
-        "https://raw.githubusercontent.com/Erridian/giftseeker/main/sponsors.json",
+        "https://raw.githubusercontent.com/Erridian/giftseeker/master/sponsors.json",
         { cache: "no-store" },
       );
 

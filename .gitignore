@@ -10,9 +10,10 @@ dist/
 
 # Temporary/Old files
 giftseeker-old/
-mobile/
 .git.zip
 giftseeker-master.7z
+
+mobile/
 
 # OS metadata
 .DS_Store

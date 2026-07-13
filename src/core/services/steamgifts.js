@@ -217,7 +217,14 @@ class SteamGifts extends BaseService {
         const document = parse(response.data);
         const userPointNode = document.querySelector(".nav__points");
 
-        if (!userPointNode) {
+        if (userPointNode) {
+          const xsrfNode = document
+            .querySelectorAll("input")
+            .filter(node => node.getAttribute("name") === "xsrf_token")[0];
+          if (xsrfNode) {
+            this.xsrfToken = xsrfNode.getAttribute("value");
+          }
+        } else {
           const loginNode = document.querySelector(".nav__sits");
           if (loginNode) {
             console.log(
@@ -291,6 +298,28 @@ class SteamGifts extends BaseService {
   }
 
   async seekService() {
+    if (this.xsrfToken) {
+      try {
+        await this.http({
+          url: `${this.websiteUrl}/ajax.php`,
+          responseType: "json",
+          method: "post",
+          data: query.stringify({
+            xsrf_token: this.xsrfToken,
+            do: "sync",
+          }),
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            Referer: `${this.websiteUrl}/account/settings/profile`,
+          },
+        });
+        this.log(this.translate("sync_started"), 1);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (err) {
+        // Ignore sync errors
+      }
+    }
+
     this.xsrfToken = null;
     let giveaways = [];
 
@@ -526,7 +555,7 @@ class SteamGifts extends BaseService {
   extractGiveaways(document) {
     const pinnedCodes = document
       .querySelectorAll(
-        ".pinned-giveaways__outer-wrap .giveaway__row-outer-wrap",
+        ".pinned-giveaways .giveaway__row-outer-wrap, .pinned-giveaways__outer-wrap .giveaway__row-outer-wrap",
       )
       .map(htmlNode => this.parseGiveaway(htmlNode).code);
 

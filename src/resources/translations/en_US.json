@@ -116,6 +116,7 @@
       "points_reserve_title": "Amount of GalaCoins that are forbidden to spend"
     },
     "steamgifts": {
+      "sync_started": "Synchronizing account with Steam...",
       "value_label": "Points",
       "cost": "Cost",
       "chance": "Chance",

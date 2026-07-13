@@ -8,7 +8,7 @@ const runningState = require("../running-state.enum");
 const logSeverity = require("../log-severity.enum");
 const settingType = require("./settings/setting-type.enum");
 
-console.log("!!! BaseService.js version 2.2.14 LOADED !!!");
+console.log("!!! BaseService.js version 2.2.15 LOADED !!!");
 
 module.exports = class BaseService {
   constructor(settingsStorage, { withValue = true, ...params }, session) {
@@ -84,7 +84,7 @@ module.exports = class BaseService {
     let net;
     try {
       net = require("electron").net;
-    } catch (e) { }
+    } catch (e) {}
 
     if (net && net.request) {
       const self = this;
@@ -97,61 +97,88 @@ module.exports = class BaseService {
             const requestOptions = {
               method: config.method.toUpperCase(),
               url: config.url,
-              useSessionCookies: true
+              useSessionCookies: true,
             };
 
             // Use the provided session object or the session from its wrapper
             if (self.session) {
-              requestOptions.session = self.session.getSessionInstance ? self.session.getSessionInstance() : self.session;
+              requestOptions.session = self.session.getSessionInstance
+                ? self.session.getSessionInstance()
+                : self.session;
             }
 
             const request = net.request(requestOptions);
-            
+
             if (config.headers) {
               for (const key of Object.keys(config.headers)) {
                 const val = config.headers[key];
                 // If we use session cookies, we usually don't want to pass a manual Cookie header unless it's specifically needed
-                if (val !== undefined && val !== null && typeof val !== 'object' && key.toLowerCase() !== 'host') {
-                  if (key.toLowerCase() === 'cookie' && requestOptions.useSessionCookies) {
+                if (
+                  val !== undefined &&
+                  val !== null &&
+                  typeof val !== "object" &&
+                  key.toLowerCase() !== "host"
+                ) {
+                  if (
+                    key.toLowerCase() === "cookie" &&
+                    requestOptions.useSessionCookies
+                  ) {
                     continue;
                   }
                   request.setHeader(key, val.toString());
                 }
               }
             }
-            request.on('response', (response) => {
+            request.on("response", response => {
               const data = [];
-              response.on('data', chunk => data.push(chunk));
-              response.on('error', (err) => {
-                if (retryCount < maxRetries && err && err.message && (err.message.includes('ERR_HTTP2_PING_FAILED') || err.message.includes('ERR_HTTP2_PROTOCOL_ERROR'))) {
+              response.on("data", chunk => data.push(chunk));
+              response.on("error", err => {
+                if (
+                  retryCount < maxRetries &&
+                  err &&
+                  err.message &&
+                  (err.message.includes("ERR_HTTP2_PING_FAILED") ||
+                    err.message.includes("ERR_HTTP2_PROTOCOL_ERROR"))
+                ) {
                   retryCount++;
                   makeRequest();
                 } else {
                   reject(err);
                 }
               });
-              response.on('aborted', () => reject(new Error('Response aborted')));
-              response.on('end', () => {
-                const responseData = Buffer.concat(data).toString('utf8');
+              response.on("aborted", () =>
+                reject(new Error("Response aborted")),
+              );
+              response.on("end", () => {
+                const responseData = Buffer.concat(data).toString("utf8");
                 resolve({
-                  data: config.responseType === 'json' ? JSON.parse(responseData || '{}') : responseData,
+                  data:
+                    config.responseType === "json"
+                      ? JSON.parse(responseData || "{}")
+                      : responseData,
                   status: response.statusCode,
                   statusText: response.statusMessage,
                   headers: response.headers,
                   config,
-                  request
+                  request,
                 });
               });
             });
-            request.on('error', (err) => {
-              if (retryCount < maxRetries && err && err.message && (err.message.includes('ERR_HTTP2_PING_FAILED') || err.message.includes('ERR_HTTP2_PROTOCOL_ERROR'))) {
+            request.on("error", err => {
+              if (
+                retryCount < maxRetries &&
+                err &&
+                err.message &&
+                (err.message.includes("ERR_HTTP2_PING_FAILED") ||
+                  err.message.includes("ERR_HTTP2_PROTOCOL_ERROR"))
+              ) {
                 retryCount++;
                 makeRequest();
               } else {
                 reject(err);
               }
             });
-            request.on('abort', () => reject(new Error('Request aborted')));
+            request.on("abort", () => reject(new Error("Request aborted")));
             if (config.data) {
               request.write(config.data);
             }
@@ -168,14 +195,16 @@ module.exports = class BaseService {
     if (this.session && this.session.setCookiesFromString) {
       const storedCookie = this.getConfig("cookie", "");
       if (storedCookie) {
-         this.session.setCookiesFromString(this.websiteUrl, storedCookie);
+        this.session.setCookiesFromString(this.websiteUrl, storedCookie);
       }
     }
 
     this.http.interceptors.response.use(response => {
       let host;
       if (response.config && response.config.url) {
-        try { host = new URL(response.config.url).hostname; } catch (e) { }
+        try {
+          host = new URL(response.config.url).hostname;
+        } catch (e) {}
       }
       if (!host && response.request && response.request.socket) {
         host = response.request.socket.servername;
@@ -190,7 +219,9 @@ module.exports = class BaseService {
           response.headers["set-cookie"],
         );
 
-        console.log(`[BaseService] ${this.name} received cookies from host: ${host}`);
+        console.log(
+          `[BaseService] ${this.name} received cookies from host: ${host}`,
+        );
         this.modifyCookie(cookieArray);
       }
 
@@ -212,12 +243,16 @@ module.exports = class BaseService {
       .then(res => {
         const isAuth = res.data.indexOf(this.authContent) >= 0;
         if (!isAuth && res.status === 200) {
-          console.log(`[BaseService] Auth check failed for ${this.name}: ${this.authContent} not found in response string.`);
+          console.log(
+            `[BaseService] Auth check failed for ${this.name}: ${this.authContent} not found in response string.`,
+          );
         }
         return isAuth ? authState.AUTHORIZED : authState.NOT_AUTHORIZED;
       })
       .catch(err => {
-        console.log(`[BaseService] Auth check error for ${this.name}: ${err.message}`);
+        console.log(
+          `[BaseService] Auth check error for ${this.name}: ${err.message}`,
+        );
         return err.response && err.response.status === 200
           ? authState.NOT_AUTHORIZED
           : authState.CONNECTION_REFUSED;
@@ -252,7 +287,10 @@ module.exports = class BaseService {
         const trimmed = row.trim();
         const sep = trimmed.indexOf("=");
         if (sep !== -1) {
-          currentCookies.set(trimmed.substring(0, sep), trimmed.substring(sep + 1));
+          currentCookies.set(
+            trimmed.substring(0, sep),
+            trimmed.substring(sep + 1),
+          );
         }
       });
     cookieArray.forEach(cookie => {
@@ -273,9 +311,11 @@ module.exports = class BaseService {
       console.log(`[BaseService] Clearing cookie for ${this.name}`);
     } else {
       const hasPhpSessId = cookie.includes("PHPSESSID=");
-      console.log(`[BaseService] Setting cookie for ${this.name}: ${cookie.substring(0, 50)}... (Length: ${cookie.length}, PHPSESSID: ${hasPhpSessId})`);
+      console.log(
+        `[BaseService] Setting cookie for ${this.name}: ${cookie.substring(0, 50)}... (Length: ${cookie.length}, PHPSESSID: ${hasPhpSessId})`,
+      );
     }
-    
+
     this.setConfig("cookie", cookie);
     this.http.defaults.headers.Cookie = cookie;
 
@@ -290,10 +330,14 @@ module.exports = class BaseService {
       return authState.AUTHORIZED;
     }
 
-    console.log(`[BaseService] Starting service ${this.name} (autostart: ${!!autostart})`);
+    console.log(
+      `[BaseService] Starting service ${this.name} (autostart: ${!!autostart})`,
+    );
     this.setState(runningState.PROCESS);
     const authResult = await this.authCheck();
-    console.log(`[BaseService] Auth check result for ${this.name}: ${authResult}`);
+    console.log(
+      `[BaseService] Auth check result for ${this.name}: ${authResult}`,
+    );
 
     switch (authResult) {
       case authState.AUTHORIZED:
@@ -490,7 +534,7 @@ module.exports = class BaseService {
     this.events.emit("log", message, severity);
   }
 
-  async seekService() { }
+  async seekService() {}
 
   async getUserInfo() {
     throw new Error("Not implemented");

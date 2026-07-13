@@ -1,22 +1,20 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "Dropushko",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/dropushko_logo.png",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/dropushko_logo.png"
     },
     "android": {
       "package": "com.erridian.dropushko",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#121418",
+        "foregroundImage": "./assets/images/dropushko_logo.png"
       },
       "predictiveBackGestureEnabled": false
     },
