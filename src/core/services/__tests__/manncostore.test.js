@@ -113,6 +113,58 @@ describe("ManncoStore Service", () => {
     expect(info.value).toBe("25.5");
   });
 
+  test("should preserve auth cookie when user is null (Nuxt initial login) and fetch user info via API", async () => {
+    const validToken = makeJwt(3600);
+    // Nuxt initial login cookie: { token: "eyJ...", user: null }
+    const nuxtAuthObj = { token: validToken, user: null };
+    const rawCookie = `auth=${encodeURIComponent(JSON.stringify(nuxtAuthObj))}`;
+
+    manncostore.setCookie(rawCookie);
+    expect(manncostore.getConfig("cookie")).toContain("auth=");
+
+    const authData = manncostore.getAuthData();
+    expect(authData).not.toBeNull();
+    expect(authData.token).toBe(validToken);
+    expect(authData.user).toBeNull();
+
+    // Mock /user/infos API
+    manncostore.http = {
+      get: jest.fn().mockResolvedValue({
+        status: 200,
+        data: {
+          content: {
+            informations: {
+              name: "FreshLoggedInUser",
+              image: "https://mannco.store/avatar.png",
+              balance: 15.2,
+            },
+          },
+        },
+      }),
+    };
+
+    const userInfo = await manncostore.getUserInfo();
+    expect(userInfo.username).toBe("FreshLoggedInUser");
+    expect(userInfo.avatar).toBe("https://mannco.store/avatar.png");
+    expect(userInfo.value).toBe("15.2");
+
+    // Check that cookie was updated to include user profile
+    const updatedCookie = manncostore.getConfig("cookie");
+    expect(updatedCookie).toContain("FreshLoggedInUser");
+  });
+
+  test("should strip invalid or null auth tokens in setCookie", () => {
+    // auth={"token":null}
+    manncostore.setCookie(
+      `auth=${encodeURIComponent(JSON.stringify({ token: null }))}`,
+    );
+    expect(manncostore.getConfig("cookie")).not.toContain("auth=");
+
+    // auth=null
+    manncostore.setCookie("auth=null; other=123");
+    expect(manncostore.getConfig("cookie")).toBe("other=123");
+  });
+
   test("authCheck should return NOT_AUTHORIZED if no cookie or expired", async () => {
     // No cookie
     const res1 = await manncostore.authCheck();
@@ -328,5 +380,33 @@ describe("ManncoStore Service", () => {
     expect(result).toBe(true);
     expect(manncostore.http.post).toHaveBeenCalledTimes(2);
     expect(manncostore.http.get).toHaveBeenCalledTimes(2);
+  });
+
+  test("should repair corrupted glued auth cookies and maintain proper semicolons", () => {
+    const validToken = makeJwt(3600);
+    const authObj = { token: validToken, user: { name: "RepairedUser" } };
+    const authVal = encodeURIComponent(JSON.stringify(authObj));
+
+    // Corrupted string where auth= was glued directly onto cf_clearance without a semicolon, and duplicated
+    const corrupted = `cf_clearance=abc123xyzauth=${authVal}auth=${authVal}`;
+    manncostore.setCookie(corrupted);
+
+    const savedCookie = manncostore.getConfig("cookie");
+    expect(savedCookie).toContain("cf_clearance=abc123xyz");
+    expect(savedCookie).toContain("; auth=");
+
+    const authData = manncostore.getAuthData();
+    expect(authData).not.toBeNull();
+    expect(authData.token).toBe(validToken);
+    expect(authData.user.name).toBe("RepairedUser");
+  });
+
+  test("setCookieValue should cleanly replace cookie without stripping semicolons", () => {
+    const initial = "cf_clearance=123; session=abc";
+    const updated = manncostore.setCookieValue(initial, "auth", "token123");
+    expect(updated).toBe("cf_clearance=123; session=abc; auth=token123");
+
+    const replaced = manncostore.setCookieValue(updated, "auth", "token456");
+    expect(replaced).toBe("cf_clearance=123; session=abc; auth=token456");
   });
 });

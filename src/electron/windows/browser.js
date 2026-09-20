@@ -64,6 +64,50 @@ const create = (session, parentWindow, onClose) => {
     }
   };
 
+  const isValidAuthCookie = val => {
+    if (!val || typeof val !== "string") {
+      return false;
+    }
+    let token = null;
+    if (val.startsWith("eyJ")) {
+      token = val.trim();
+    } else {
+      try {
+        const decoded = decodeURIComponent(val);
+        if (decoded.startsWith("eyJ")) {
+          token = decoded.trim();
+        } else {
+          let parsed = JSON.parse(decoded);
+          while (typeof parsed === "string") {
+            parsed = JSON.parse(parsed);
+          }
+          if (parsed && typeof parsed.token === "string") {
+            token = parsed.token.trim();
+          }
+        }
+      } catch (e) {
+        try {
+          let parsed = JSON.parse(val);
+          while (typeof parsed === "string") {
+            parsed = JSON.parse(parsed);
+          }
+          if (parsed && typeof parsed.token === "string") {
+            token = parsed.token.trim();
+          }
+        } catch (e2) {
+          // Ignore
+        }
+      }
+    }
+    return Boolean(
+      token &&
+        token !== "null" &&
+        token.startsWith("ey") &&
+        token.length > 20 &&
+        !isTokenExpired(token),
+    );
+  };
+
   const sanitizeManncoAuthCookie = async () => {
     try {
       const ses = session.getSessionInstance
@@ -81,7 +125,7 @@ const create = (session, parentWindow, onClose) => {
           continue;
         }
         const raw = authCookie.value;
-        if (raw.includes("null") && !raw.includes("ey")) {
+        if (!isValidAuthCookie(raw)) {
           continue;
         }
         const decoded = decodeURIComponent(raw);
@@ -535,52 +579,49 @@ const create = (session, parentWindow, onClose) => {
 
           // Ensure auth cookie in the returned string is clean single-encoded JSON, and strip any null tokens
           if (cookies && cookies.includes("auth=")) {
-            const match = cookies.match(/(?:^|;\s*)auth=([^;]+)/);
-            if (match) {
-              const raw = match[1];
-              if (raw.includes("null") || !raw.includes("ey")) {
-                // Strip null or invalid auth cookie completely
-                cookies = cookies
-                  .replace(/(?:^|;\s*)auth=[^;]*/g, "")
-                  .replace(/^;\s*|;\s*$/g, "");
-              } else {
-                const decoded = decodeURIComponent(raw);
-                try {
-                  let parsed = JSON.parse(decoded);
-                  while (typeof parsed === "string") {
-                    parsed = JSON.parse(parsed);
-                  }
-                  if (
-                    parsed &&
-                    parsed.token &&
-                    typeof parsed.token === "string" &&
-                    parsed.token.startsWith("ey") &&
-                    parsed.token !== "null"
-                  ) {
-                    const cleanVal = encodeURIComponent(JSON.stringify(parsed));
-                    cookies = cookies.replace(
-                      /(?:^|;\s*)auth=[^;]+/,
-                      `auth=${cleanVal}`,
-                    );
-                  } else {
-                    cookies = cookies
-                      .replace(/(?:^|;\s*)auth=[^;]*/g, "")
-                      .replace(/^;\s*|;\s*$/g, "");
-                  }
-                } catch (e) {
-                  if (raw.startsWith("ey")) {
-                    cookies = cookies.replace(
-                      /(?:^|;\s*)auth=[^;]+/,
-                      `auth=${raw}`,
-                    );
-                  } else {
-                    cookies = cookies
-                      .replace(/(?:^|;\s*)auth=[^;]*/g, "")
-                      .replace(/^;\s*|;\s*$/g, "");
+            const normalized = cookies.replace(/([^\s;])auth=/g, "$1; auth=");
+            const parts = normalized
+              .split(";")
+              .map(s => s.trim())
+              .filter(Boolean);
+
+            const otherCookies = [];
+            let validAuthVal = null;
+
+            for (const part of parts) {
+              if (part.startsWith("auth=")) {
+                const raw = part.substring(5);
+                if (isValidAuthCookie(raw)) {
+                  try {
+                    let parsed = JSON.parse(decodeURIComponent(raw));
+                    while (typeof parsed === "string") {
+                      parsed = JSON.parse(parsed);
+                    }
+                    if (
+                      parsed &&
+                      parsed.token &&
+                      typeof parsed.token === "string" &&
+                      parsed.token.startsWith("ey") &&
+                      parsed.token !== "null"
+                    ) {
+                      validAuthVal = encodeURIComponent(JSON.stringify(parsed));
+                    }
+                  } catch (e) {
+                    if (raw.startsWith("ey")) {
+                      validAuthVal = raw;
+                    }
                   }
                 }
+              } else {
+                otherCookies.push(part);
               }
             }
+
+            if (validAuthVal) {
+              otherCookies.push(`auth=${validAuthVal}`);
+            }
+
+            cookies = otherCookies.join("; ");
           }
         }
 

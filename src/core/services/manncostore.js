@@ -21,6 +21,67 @@ class ManncoStore extends BaseService {
     delete this.settings.points_reserve;
     this.csrfToken = null;
     this.csrfExpiresAt = null;
+    this.authData = null;
+  }
+
+  isValidAuthCookie(val) {
+    if (!val || typeof val !== "string") {
+      return false;
+    }
+    let token = null;
+    if (val.startsWith("eyJ")) {
+      token = val.trim();
+    } else {
+      try {
+        const decoded = decodeURIComponent(val);
+        if (decoded.startsWith("eyJ")) {
+          token = decoded.trim();
+        } else {
+          let parsed = JSON.parse(decoded);
+          while (typeof parsed === "string") {
+            parsed = JSON.parse(parsed);
+          }
+          if (parsed && typeof parsed.token === "string") {
+            token = parsed.token.trim();
+          }
+        }
+      } catch (e) {
+        try {
+          let parsed = JSON.parse(val);
+          while (typeof parsed === "string") {
+            parsed = JSON.parse(parsed);
+          }
+          if (parsed && typeof parsed.token === "string") {
+            token = parsed.token.trim();
+          }
+        } catch (e2) {
+          // Ignore
+        }
+      }
+    }
+    return Boolean(
+      token &&
+        token !== "null" &&
+        token.startsWith("ey") &&
+        token.length > 20 &&
+        !this.isTokenExpired(token),
+    );
+  }
+
+  setCookieValue(cookieString, cookieName, cookieValue) {
+    if (!cookieString || typeof cookieString !== "string") {
+      return cookieValue ? `${cookieName}=${cookieValue}` : "";
+    }
+    const normalized = cookieString.replace(/([^\s;])auth=/g, "$1; auth=");
+    const items = normalized
+      .split(";")
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && !s.startsWith(`${cookieName}=`));
+
+    if (cookieValue) {
+      items.push(`${cookieName}=${cookieValue}`);
+    }
+    return items.join("; ");
   }
 
   async getCsrfToken(forceRefresh = false) {
@@ -201,28 +262,27 @@ class ManncoStore extends BaseService {
     let cookieStr = this.getConfig("cookie", "");
     let authVal = null;
     if (cookieStr) {
-      const match = cookieStr.match(/(?:^|;\s*)auth=([^;]+)/);
+      const normalized = cookieStr.replace(/([^\s;])auth=/g, "$1; auth=");
+      const match = normalized.match(/(?:^|;\s*)auth=([^;]+)/);
       if (match) {
         authVal = match[1];
       }
     }
 
-    if (authVal) {
-      if (authVal.includes("null") && !authVal.includes("ey")) {
-        return null;
-      }
-
+    if (authVal && this.isValidAuthCookie(authVal)) {
       if (typeof authVal === "string" && authVal.startsWith("eyJ")) {
-        return { token: authVal.trim(), user: null };
+        this.authData = { token: authVal.trim(), user: null };
+        return this.authData;
       }
 
       try {
         const decoded = decodeURIComponent(authVal);
         if (decoded.startsWith("eyJ")) {
-          return { token: decoded.trim(), user: null };
+          this.authData = { token: decoded.trim(), user: null };
+          return this.authData;
         }
         let parsed = JSON.parse(decoded);
-        if (typeof parsed === "string") {
+        while (typeof parsed === "string") {
           parsed = JSON.parse(parsed);
         }
         if (
@@ -230,14 +290,16 @@ class ManncoStore extends BaseService {
           parsed.token &&
           typeof parsed.token === "string" &&
           parsed.token.startsWith("ey") &&
-          parsed.token !== "null"
+          parsed.token !== "null" &&
+          !this.isTokenExpired(parsed.token)
         ) {
-          return parsed;
+          this.authData = parsed;
+          return this.authData;
         }
       } catch (e) {
         try {
           let parsed = JSON.parse(authVal);
-          if (typeof parsed === "string") {
+          while (typeof parsed === "string") {
             parsed = JSON.parse(parsed);
           }
           if (
@@ -245,14 +307,24 @@ class ManncoStore extends BaseService {
             parsed.token &&
             typeof parsed.token === "string" &&
             parsed.token.startsWith("ey") &&
-            parsed.token !== "null"
+            parsed.token !== "null" &&
+            !this.isTokenExpired(parsed.token)
           ) {
-            return parsed;
+            this.authData = parsed;
+            return this.authData;
           }
         } catch (e2) {
           // Ignore JSON parse errors
         }
       }
+    }
+
+    if (
+      this.authData &&
+      this.authData.token &&
+      !this.isTokenExpired(this.authData.token)
+    ) {
+      return this.authData;
     }
 
     return null;
@@ -342,21 +414,16 @@ class ManncoStore extends BaseService {
                 parsed.token !== "null" &&
                 !this.isTokenExpired(parsed.token)
               ) {
+                this.authData = parsed;
                 const cleanCookieVal = encodeURIComponent(
                   JSON.stringify(parsed),
                 );
                 const currentCookie = this.getConfig("cookie", "");
-                let updatedCookie;
-                if (currentCookie.includes("auth=")) {
-                  updatedCookie = currentCookie.replace(
-                    /(?:^|;\s*)auth=[^;]+/,
-                    `auth=${cleanCookieVal}`,
-                  );
-                } else {
-                  updatedCookie = currentCookie
-                    ? `${currentCookie}; auth=${cleanCookieVal}`
-                    : `auth=${cleanCookieVal}`;
-                }
+                const updatedCookie = this.setCookieValue(
+                  currentCookie,
+                  "auth",
+                  cleanCookieVal,
+                );
                 this.setCookie(updatedCookie);
                 authData = parsed;
               }
@@ -397,6 +464,7 @@ class ManncoStore extends BaseService {
         res.data.success &&
         res.data.content?.connected
       ) {
+        this.authData = authData;
         console.log(
           `[ManncoStore] Auth check succeeded (user: ${authData.user?.name || "Connected"})`,
         );
@@ -415,16 +483,9 @@ class ManncoStore extends BaseService {
   }
 
   async getUserInfo() {
-    const authData = this.getAuthData();
-    if (authData && authData.user) {
-      return {
-        avatar: authData.user.avatar || "",
-        username: authData.user.name || "Mannco User",
-        value:
-          authData.user.balance !== undefined
-            ? String(authData.user.balance)
-            : "0",
-      };
+    let authData = this.getAuthData();
+    if (!authData || !authData.token) {
+      authData = this.authData;
     }
 
     if (authData && authData.token) {
@@ -440,6 +501,43 @@ class ManncoStore extends BaseService {
 
         if (res.status === 200 && res.data && res.data.content?.informations) {
           const info = res.data.content.informations;
+          authData.user = {
+            name: info.name || "Mannco User",
+            avatar: info.image || "",
+            balance: info.balance !== undefined ? info.balance : 0,
+          };
+          this.authData = authData;
+
+          const cleanCookieVal = encodeURIComponent(JSON.stringify(authData));
+          const currentCookie = this.getConfig("cookie", "");
+          const updatedCookie = this.setCookieValue(
+            currentCookie,
+            "auth",
+            cleanCookieVal,
+          );
+          this.setCookie(updatedCookie);
+
+          if (this.session) {
+            try {
+              const sessionInstance = this.session.getSessionInstance
+                ? this.session.getSessionInstance()
+                : this.session;
+              if (sessionInstance && sessionInstance.cookies) {
+                await sessionInstance.cookies.set({
+                  url: this.websiteUrl,
+                  name: "auth",
+                  value: cleanCookieVal,
+                  path: "/",
+                  secure: true,
+                  sameSite: "lax",
+                  expirationDate: Math.floor(Date.now() / 1000) + 604800,
+                });
+              }
+            } catch (e) {
+              // Ignore session cookie set error
+            }
+          }
+
           return {
             avatar: info.image || "",
             username: info.name || "Mannco User",
@@ -447,8 +545,19 @@ class ManncoStore extends BaseService {
           };
         }
       } catch (e) {
-        // Ignore user info fetch error
+        // Ignore user info fetch error, fall back to cached user info
       }
+    }
+
+    if (authData && authData.user) {
+      return {
+        avatar: authData.user.avatar || "",
+        username: authData.user.name || "Mannco User",
+        value:
+          authData.user.balance !== undefined
+            ? String(authData.user.balance)
+            : "0",
+      };
     }
 
     return {
@@ -591,21 +700,53 @@ class ManncoStore extends BaseService {
   }
 
   setCookie(cookie) {
-    if (cookie && typeof cookie === "string") {
-      // Strip any null or empty auth token cookies to prevent session corruption
-      cookie = cookie
+    if (!cookie) {
+      this.authData = null;
+      super.setCookie(cookie);
+      return;
+    }
+
+    if (typeof cookie === "string") {
+      const normalized = cookie.replace(/([^\s;])auth=/g, "$1; auth=");
+      const parts = normalized
         .split(";")
         .map(s => s.trim())
-        .filter(s => {
-          if (s.startsWith("auth=")) {
-            const val = s.substring(5);
-            return !val.includes("null") && val.includes("ey");
+        .filter(s => s.length > 0);
+
+      const otherCookies = [];
+      let validAuthVal = null;
+
+      for (const part of parts) {
+        if (part.startsWith("auth=")) {
+          const val = part.substring(5);
+          if (this.isValidAuthCookie(val)) {
+            validAuthVal = val;
           }
-          return s.length > 0;
-        })
-        .join("; ");
+        } else {
+          otherCookies.push(part);
+        }
+      }
+
+      if (
+        !validAuthVal &&
+        this.authData &&
+        this.authData.token &&
+        !this.isTokenExpired(this.authData.token)
+      ) {
+        validAuthVal = encodeURIComponent(JSON.stringify(this.authData));
+      }
+
+      if (validAuthVal) {
+        otherCookies.push(`auth=${validAuthVal}`);
+      }
+
+      cookie = otherCookies.join("; ");
     }
+
     super.setCookie(cookie);
+    if (cookie && cookie.includes("auth=")) {
+      this.getAuthData();
+    }
   }
 }
 

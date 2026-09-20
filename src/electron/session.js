@@ -79,6 +79,46 @@ const create = (settings, sessionName) => {
     // Ignore
   }
 
+  const isValidAuthCookie = val => {
+    if (!val || typeof val !== "string") {
+      return false;
+    }
+    let token = null;
+    if (val.startsWith("eyJ")) {
+      token = val.trim();
+    } else {
+      try {
+        const decoded = decodeURIComponent(val);
+        if (decoded.startsWith("eyJ")) {
+          token = decoded.trim();
+        } else {
+          let parsed = JSON.parse(decoded);
+          while (typeof parsed === "string") {
+            parsed = JSON.parse(parsed);
+          }
+          if (parsed && typeof parsed.token === "string") {
+            token = parsed.token.trim();
+          }
+        }
+      } catch (e) {
+        try {
+          let parsed = JSON.parse(val);
+          while (typeof parsed === "string") {
+            parsed = JSON.parse(parsed);
+          }
+          if (parsed && typeof parsed.token === "string") {
+            token = parsed.token.trim();
+          }
+        } catch (e2) {
+          // Ignore
+        }
+      }
+    }
+    return Boolean(
+      token && token !== "null" && token.startsWith("ey") && token.length > 20,
+    );
+  };
+
   const extractCookiesByUrl = async url => {
     let cookies = [];
     try {
@@ -104,10 +144,8 @@ const create = (settings, sessionName) => {
             const existingAuth = cookies.find(c => c.name === "auth");
             if (
               existingAuth &&
-              (existingAuth.value.includes("null") ||
-                !existingAuth.value.includes("ey")) &&
-              dc.value &&
-              dc.value.includes("ey")
+              !isValidAuthCookie(existingAuth.value) &&
+              isValidAuthCookie(dc.value)
             ) {
               const idx = cookies.indexOf(existingAuth);
               if (idx !== -1) {
@@ -123,9 +161,7 @@ const create = (settings, sessionName) => {
 
     if (url.includes("mannco.store")) {
       cookies = cookies.filter(
-        c =>
-          c.name !== "auth" ||
-          (!c.value.includes("null") && c.value.includes("ey")),
+        c => c.name !== "auth" || isValidAuthCookie(c.value),
       );
     }
 
@@ -331,7 +367,7 @@ const create = (settings, sessionName) => {
 
         if (url.includes("mannco.store") && name === "auth") {
           // Never inject null or invalid auth cookie for mannco.store
-          if (value.includes("null") || !value.includes("ey")) {
+          if (!isValidAuthCookie(value)) {
             continue;
           }
           try {

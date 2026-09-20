@@ -34,6 +34,11 @@ const saveFile = (filename, data, sortData = false) => {
   const dataToSave = sortData && isObject(data) ? sortObject(data) : data;
 
   return new Promise(resolve => {
+    if (!currentDataPath) {
+      resolve(false);
+      return;
+    }
+
     fs.mkdir(currentDataPath, { recursive: true }, error => {
       if (error) {
         resolve(false);
