@@ -26,9 +26,30 @@ ipcRenderer.on("window-initial-data", async (event, data) => {
   updatePagePhrases(translations.phrases);
   initTranslationSelector(translations);
 
-  if (settings && settings.light_theme) {
-    document.body.classList.add("light-theme");
-  }
+  const applyTheme = () => {
+    if (settings) {
+      if (settings.system_theme) {
+        const systemDark = window.matchMedia(
+          "(prefers-color-scheme: dark)",
+        ).matches;
+        if (systemDark) {
+          document.body.classList.remove("light-theme");
+        } else {
+          document.body.classList.add("light-theme");
+        }
+      } else if (settings.light_theme) {
+        document.body.classList.add("light-theme");
+      } else {
+        document.body.classList.remove("light-theme");
+      }
+    }
+  };
+
+  applyTheme();
+
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", applyTheme);
 
   authButton.classList.add("disabled");
   setAuthStatus("auth.check");

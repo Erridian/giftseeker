@@ -20,7 +20,7 @@ class Settings {
       .catch(() => ({}));
 
     for (const configKey in defaultSettings) {
-      if (!storedSettings[configKey]) {
+      if (storedSettings[configKey] === undefined) {
         storedSettings[configKey] = defaultSettings[configKey];
       }
     }

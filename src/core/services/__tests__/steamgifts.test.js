@@ -150,3 +150,164 @@ describe("Winning chance calculation", () => {
     expect(calculatedChance).toEqual(caseData.expectChance);
   });
 });
+
+describe("Points Saver logic", () => {
+  let settingsInstance;
+  let serviceInstance;
+
+  beforeEach(() => {
+    settingsInstance = new Settings("settings", {});
+    serviceInstance = new SteamGifts(settingsInstance);
+    serviceInstance.http = jest.fn();
+    serviceInstance.entryInterval = jest.fn().mockResolvedValue(true);
+    serviceInstance.isStarted = jest.fn().mockReturnValue(true);
+  });
+
+  test("canEnterGiveaway with ignorePoints parameter", () => {
+    settingsInstance.settings = {
+      steamgifts_points_reserve: 50,
+    };
+    serviceInstance.setValue(40);
+
+    const giveaway = createGiveaway(1, { cost: 10 });
+
+    // Normal check should fail because points reserve (50) is violated
+    expect(serviceInstance.canEnterGiveaway(giveaway, false)).toBe(false);
+
+    // ignorePoints = true should pass
+    expect(serviceInstance.canEnterGiveaway(giveaway, true)).toBe(true);
+  });
+
+  test("freePoints refunds points by leaving banked giveaways", async () => {
+    settingsInstance.settings = {
+      steamgifts_banked_giveaways: [
+        {
+          code: "banked1",
+          name: "Banked Game 1",
+          cost: 50,
+          endTimestamp: 9999999999,
+        },
+        {
+          code: "banked2",
+          name: "Banked Game 2",
+          cost: 60,
+          endTimestamp: 9999999999,
+        },
+      ],
+    };
+    serviceInstance.setValue(40);
+
+    // Mock leaveGiveaway HTTP calls returning points
+    serviceInstance.http.mockResolvedValueOnce({
+      data: { type: "success", points: 90 },
+    });
+
+    const success = await serviceInstance.freePoints(80);
+    expect(success).toBe(true);
+    expect(serviceInstance.currentValue).toBe(90);
+    expect(settingsInstance.get("steamgifts_banked_giveaways")).toEqual([
+      {
+        code: "banked2",
+        name: "Banked Game 2",
+        cost: 60,
+        endTimestamp: 9999999999,
+      },
+    ]);
+  });
+
+  test("bankPoints enters expensive giveaways to save points", async () => {
+    settingsInstance.settings = {
+      steamgifts_points_saver: true,
+      steamgifts_points_saver_min_cost: 50,
+      steamgifts_banked_giveaways: [],
+    };
+    serviceInstance.setValue(390);
+
+    const candidate = createGiveaway(1, {
+      cost: 60,
+      timeLeft: 100000,
+      entered: false,
+      levelPass: true,
+    });
+
+    serviceInstance.http.mockResolvedValueOnce({
+      data: { type: "success", points: 330 },
+    });
+
+    await serviceInstance.bankPoints([candidate]);
+    expect(serviceInstance.currentValue).toBe(330);
+    expect(settingsInstance.get("steamgifts_banked_giveaways")).toHaveLength(1);
+    expect(settingsInstance.get("steamgifts_banked_giveaways")[0].code).toBe(
+      candidate.code,
+    );
+  });
+
+  test("canEnterGiveaway respects featured_giveaways checkbox when wishlist_only is true", () => {
+    serviceInstance.setValue(300);
+
+    const pinnedGa = createGiveaway(1, {
+      cost: 10,
+      pinned: true,
+      pageType: "featured",
+    });
+    const wishlistGa = createGiveaway(2, {
+      cost: 10,
+      pinned: false,
+      pageType: "wishlist",
+    });
+    const regularGa = createGiveaway(3, {
+      cost: 10,
+      pinned: false,
+      pageType: "public",
+    });
+
+    // Case 1: featured_giveaways is FALSE -> pinned giveaways are skipped
+    settingsInstance.settings = {
+      steamgifts_wishlist_only: true,
+      steamgifts_featured_giveaways: false,
+    };
+    expect(serviceInstance.canEnterGiveaway(pinnedGa)).toBe(false);
+    expect(serviceInstance.canEnterGiveaway(wishlistGa)).toBe(true);
+    expect(serviceInstance.canEnterGiveaway(regularGa)).toBe(false);
+
+    // Case 2: featured_giveaways is TRUE -> pinned giveaways are entered alongside wishlist
+    settingsInstance.settings = {
+      steamgifts_wishlist_only: true,
+      steamgifts_featured_giveaways: true,
+    };
+    expect(serviceInstance.canEnterGiveaway(pinnedGa)).toBe(true);
+    expect(serviceInstance.canEnterGiveaway(wishlistGa)).toBe(true);
+    expect(serviceInstance.canEnterGiveaway(regularGa)).toBe(false);
+  });
+
+  test("canEnterGiveaway respects featured_giveaways checkbox when wishlist_only is false", () => {
+    serviceInstance.setValue(300);
+
+    const pinnedGa = createGiveaway(1, {
+      cost: 10,
+      pinned: true,
+      pageType: "featured",
+    });
+    const regularGa = createGiveaway(2, {
+      cost: 10,
+      pinned: false,
+      pageType: "public",
+    });
+
+    // When featured_giveaways is FALSE -> pinned is skipped, regular is entered
+    settingsInstance.settings = {
+      steamgifts_wishlist_only: false,
+      steamgifts_featured_giveaways: false,
+    };
+    expect(serviceInstance.canEnterGiveaway(pinnedGa)).toBe(false);
+    expect(serviceInstance.canEnterGiveaway(regularGa)).toBe(true);
+
+    // When featured_giveaways is TRUE -> both pinned and regular are entered
+    settingsInstance.settings = {
+      steamgifts_wishlist_only: false,
+      steamgifts_featured_giveaways: true,
+    };
+    expect(serviceInstance.canEnterGiveaway(pinnedGa)).toBe(true);
+    expect(serviceInstance.canEnterGiveaway(regularGa)).toBe(true);
+  });
+});

@@ -8,8 +8,6 @@ const runningState = require("../running-state.enum");
 const logSeverity = require("../log-severity.enum");
 const settingType = require("./settings/setting-type.enum");
 
-console.log("!!! BaseService.js version 2.2.15 LOADED !!!");
-
 module.exports = class BaseService {
   constructor(settingsStorage, { withValue = true, ...params }, session) {
     this.settingsStorage = settingsStorage;
@@ -84,7 +82,9 @@ module.exports = class BaseService {
     let net;
     try {
       net = require("electron").net;
-    } catch (e) {}
+    } catch (e) {
+      // Electron net is not available in unit test environments
+    }
 
     if (net && net.request) {
       const self = this;
@@ -204,7 +204,9 @@ module.exports = class BaseService {
       if (response.config && response.config.url) {
         try {
           host = new URL(response.config.url).hostname;
-        } catch (e) {}
+        } catch (e) {
+          // Ignore invalid URLs
+        }
       }
       if (!host && response.request && response.request.socket) {
         host = response.request.socket.servername;
@@ -317,7 +319,12 @@ module.exports = class BaseService {
     }
 
     this.setConfig("cookie", cookie);
-    this.http.defaults.headers.Cookie = cookie;
+    if (this.http && this.http.defaults) {
+      if (!this.http.defaults.headers) {
+        this.http.defaults.headers = {};
+      }
+      this.http.defaults.headers.Cookie = cookie;
+    }
 
     // Sync back to native session if available
     if (this.session && this.session.setCookiesFromString) {

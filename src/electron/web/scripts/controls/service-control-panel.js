@@ -1,6 +1,7 @@
 export default class ServiceControlPanel {
-  constructor(websiteUrl, currency) {
+  constructor(websiteUrl, currency, serviceName) {
     this.currency = currency;
+    this.serviceName = serviceName;
 
     this.panel = document.createElement("div");
     this.panel.classList.add("service-control-panel");
@@ -54,6 +55,21 @@ export default class ServiceControlPanel {
     websiteLink.dataset.link = websiteUrl;
 
     this.appendButton(websiteLink);
+
+    const cookiesBtn = document.createElement("span");
+    cookiesBtn.classList.add("set-cookies-button", "fa", "fa-cookie-bite");
+    cookiesBtn.dataset.tippyTranslate = "service.set_cookies";
+    cookiesBtn.onclick = () => {
+      if (this.onSetCookiesCallback) {
+        this.onSetCookiesCallback(this.serviceName);
+      }
+    };
+
+    this.appendButton(cookiesBtn);
+  }
+
+  setOnSetCookiesCallback(callback) {
+    this.onSetCookiesCallback = callback;
   }
 
   appendButton(button) {

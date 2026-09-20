@@ -36,8 +36,16 @@ ipcRenderer.on(
         service.name,
         serviceInfo.settings,
         new Logger(getTranslation, timeFormat),
-        new ServiceControlPanel(serviceInfo.websiteUrl, serviceInfo.currency),
+        new ServiceControlPanel(
+          serviceInfo.websiteUrl,
+          serviceInfo.currency,
+          service.name,
+        ),
       );
+
+      service.panel.controlPanel.setOnSetCookiesCallback(serviceName => {
+        openCookiesModal(serviceName);
+      });
 
       const serviceButton = service.panel.controlPanel.mainButton;
 
@@ -179,3 +187,67 @@ ipcRenderer.on(
 window.addEventListener("beforeunload", () => {
   ipcRenderer.send("services-unloaded");
 });
+
+const modalEl = document.getElementById("cookies-modal");
+const modalTitle = document.getElementById("cookies-modal-title");
+const modalInput = document.getElementById("cookies-modal-input");
+const modalSave = document.getElementById("cookies-modal-save");
+const modalCancel = document.getElementById("cookies-modal-cancel");
+const modalClose = document.getElementById("cookies-modal-close");
+
+let currentCookieServiceName = null;
+
+const openCookiesModal = serviceName => {
+  currentCookieServiceName = serviceName;
+  if (!modalEl) {
+    return;
+  }
+
+  if (modalTitle) {
+    modalTitle.innerText = `${getTranslation("service.cookies_modal_title")} (${serviceName})`;
+  }
+  if (modalInput) {
+    modalInput.value = "";
+  }
+  modalEl.style.display = "flex";
+  if (modalInput) {
+    setTimeout(() => modalInput.focus(), 50);
+  }
+};
+
+const closeCookiesModal = () => {
+  if (!modalEl) {
+    return;
+  }
+  modalEl.style.display = "none";
+  currentCookieServiceName = null;
+};
+
+if (modalClose) {
+  modalClose.onclick = closeCookiesModal;
+}
+if (modalCancel) {
+  modalCancel.onclick = closeCookiesModal;
+}
+
+if (modalSave) {
+  modalSave.onclick = () => {
+    if (!currentCookieServiceName) {
+      return;
+    }
+    const enteredCookies = (modalInput ? modalInput.value : "").trim();
+    ipcRenderer.send("services-new-session", {
+      serviceName: currentCookieServiceName,
+      cookies: enteredCookies,
+    });
+    closeCookiesModal();
+  };
+}
+
+if (modalEl) {
+  modalEl.onclick = e => {
+    if (e.target === modalEl) {
+      closeCookiesModal();
+    }
+  };
+}

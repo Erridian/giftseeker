@@ -21,12 +21,14 @@ builder
       ? Platform[process.argv[2]]
       : getCurrentPlatform()
     ).createTarget(
-      (process.argv[2] === 'WINDOWS' || getCurrentPlatform() === Platform.WINDOWS) ? ["nsis", "portable"] : undefined
+      process.argv[2] === "WINDOWS" || getCurrentPlatform() === Platform.WINDOWS
+        ? ["nsis", "portable"]
+        : undefined,
     ),
     config: {
       appId: "com.dropushko.app",
       productName: "Dropushko",
-      artifactName: "dropushko.${ext}",
+      artifactName: "dropushko-portable-${version}.${ext}",
       copyright: "Copyright © 2016-2026 Erridian",
       files: ["src", "node_modules", "LICENSE"],
       icon: "./src/resources/images/icon.ico",
@@ -40,7 +42,7 @@ builder
         ],
       },
       nsis: {
-        artifactName: "dropushko-setup.${ext}",
+        artifactName: "dropushko-setup-${version}.${ext}",
         oneClick: false,
         perMachine: false,
         allowElevation: true,

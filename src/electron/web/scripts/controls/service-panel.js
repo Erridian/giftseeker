@@ -198,9 +198,13 @@ class SettingsControl {
     this.buttonInc.classList.add("button", "button-inc");
     this.buttonInc.innerHTML = `<span class="fa fa-plus"></span>`;
 
-    this.valueLabel = document.createElement("div");
+    this.valueLabel = document.createElement("input");
+    this.valueLabel.type = "number";
     this.valueLabel.classList.add("value-label");
-    this.valueLabel.innerText = this.getValue();
+    this.valueLabel.value = this.getValue();
+    this.valueLabel.step = step;
+    if (this.min !== undefined) this.valueLabel.min = this.min;
+    if (this.max !== undefined) this.valueLabel.max = this.max;
 
     const label = document.createElement("div");
     label.classList.add("label");
@@ -218,6 +222,68 @@ class SettingsControl {
     if (params.default === this.min) {
       this.buttonDec.classList.add("disabled");
     }
+
+    const handleInput = () => {
+      let val = this.valueLabel.value;
+      if (val === "") {
+        return;
+      }
+      let numericVal =
+        params.type === "number" ? parseInt(val, 10) : parseFloat(val);
+      if (isNaN(numericVal)) {
+        return;
+      }
+
+      if (numericVal < this.min) {
+        numericVal = this.min;
+      }
+      if (numericVal > this.max) {
+        numericVal = this.max;
+      }
+
+      if (params.type === "float_number") {
+        numericVal = parseFloat(numericVal.toFixed(2));
+      }
+
+      if (numericVal === this.max) {
+        this.buttonInc.classList.add("disabled");
+      } else {
+        this.buttonInc.classList.remove("disabled");
+      }
+      if (numericVal === this.min) {
+        this.buttonDec.classList.add("disabled");
+      } else {
+        this.buttonDec.classList.remove("disabled");
+      }
+
+      this.value = numericVal;
+      setter(this.name, numericVal);
+      if (this.range) {
+        this.range.update(numericVal);
+      }
+    };
+
+    this.valueLabel.oninput = handleInput;
+
+    this.valueLabel.onblur = () => {
+      let val = this.valueLabel.value;
+      let numericVal =
+        params.type === "number" ? parseInt(val, 10) : parseFloat(val);
+      if (isNaN(numericVal) || numericVal < this.min) {
+        numericVal = this.min;
+      } else if (numericVal > this.max) {
+        numericVal = this.max;
+      }
+      if (params.type === "float_number") {
+        numericVal = parseFloat(numericVal.toFixed(2));
+      }
+      this.valueLabel.value = numericVal;
+      this.value = numericVal;
+      setter(this.name, numericVal);
+      if (this.range) {
+        this.range.update(numericVal);
+      }
+    };
 
     let pressed = false;
     let pressTimeout;
@@ -248,11 +314,11 @@ class SettingsControl {
       this.buttonDec.onmouseup =
       this.buttonInc.onmouseleave =
       this.buttonDec.onmouseleave =
-      () => {
-        clearTimeout(pressTimeout);
-        iterations = 0;
-        pressed = false;
-      };
+        () => {
+          clearTimeout(pressTimeout);
+          iterations = 0;
+          pressed = false;
+        };
   }
 
   incrementValue(params, step) {
@@ -269,7 +335,7 @@ class SettingsControl {
       this.buttonInc.classList.add("disabled");
     }
 
-    this.valueLabel.innerText = value;
+    this.valueLabel.value = value;
     this.saveValue(value);
   }
 
@@ -287,7 +353,7 @@ class SettingsControl {
       this.buttonDec.classList.add("disabled");
     }
 
-    this.valueLabel.innerText = value;
+    this.valueLabel.value = value;
     this.saveValue(value);
   }
 
@@ -301,6 +367,21 @@ class SettingsControl {
     const constraints = this.rangeType === "max" ? "min" : "max";
 
     this[constraints] = rangeValue;
+
+    if (this.value < this.min) {
+      this.value = this.min;
+      setter(this.name, this.min);
+    }
+    if (this.value > this.max) {
+      this.value = this.max;
+      setter(this.name, this.max);
+    }
+
+    if (this.valueLabel) {
+      this.valueLabel.value = this.value;
+      if (this.min !== undefined) this.valueLabel.min = this.min;
+      if (this.max !== undefined) this.valueLabel.max = this.max;
+    }
 
     this.buttonDec.classList.remove("disabled");
     this.buttonInc.classList.remove("disabled");

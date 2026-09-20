@@ -23,8 +23,6 @@ let windowIsReady = false;
 let userIsLoggedIn = false;
 let preventReadyWindowHiding = false;
 
-app.disableHardwareAcceleration();
-
 try {
   const fs = require("fs");
   const path = require("path");
@@ -52,7 +50,16 @@ try {
     let parsed = {};
     try {
       parsed = JSON.parse(rawData);
-    } catch (e) {}
+    } catch (e) {
+      // Ignore parse error
+    }
+
+    if (
+      parsed.disable_hardware_acceleration === true ||
+      process.argv.includes("--disable-gpu")
+    ) {
+      app.disableHardwareAcceleration();
+    }
 
     if (
       parsed.user_data_path &&
@@ -61,6 +68,8 @@ try {
     ) {
       userDataPath = path.normalize(parsed.user_data_path.trim());
     }
+  } else if (process.argv.includes("--disable-gpu")) {
+    app.disableHardwareAcceleration();
   }
 
   if (userDataPath) {
@@ -97,6 +106,13 @@ try {
   });
 
   app.on("ready", async () => {
+    const locale = app.getLocale();
+    if (locale && locale.startsWith("ru")) {
+      config.defaultSettings.translation = "ru_RU";
+    } else {
+      config.defaultSettings.translation = "en_US";
+    }
+
     const settings = await Settings.build("electron", config.defaultSettings);
     const session = sessionConstructor.create(settings, config.appName);
     const services = Services.map(
@@ -112,6 +128,27 @@ try {
         authWindow.focus();
       } else {
         mainWindow.focus();
+      }
+    });
+
+    // Ensure all webContents across the app use the unified User-Agent
+    app.on("web-contents-created", (event, contents) => {
+      const currentUA = settings.get("user_agent");
+      if (currentUA && contents && !contents.isDestroyed()) {
+        try {
+          contents.setUserAgent(currentUA);
+        } catch (e) {
+          // Ignore
+        }
+      }
+    });
+
+    settings.on("change", "user_agent", newUserAgent => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.setUserAgent(newUserAgent);
+      }
+      if (authWindow && !authWindow.isDestroyed()) {
+        authWindow.webContents.setUserAgent(newUserAgent);
       }
     });
 

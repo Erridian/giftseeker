@@ -111,6 +111,11 @@ class SteamGifts extends BaseService {
       trans: this.translationKey("wishlist_only"),
       default: this.getConfig("wishlist_only", false),
     };
+    this.settings.featured_giveaways = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("featured_giveaways"),
+      default: this.getConfig("featured_giveaways", false),
+    };
     this.settings.group_only = {
       type: settingType.CHECKBOX,
       trans: this.translationKey("group_only"),
@@ -180,6 +185,18 @@ class SteamGifts extends BaseService {
       type: settingType.CHECKBOX,
       trans: this.translationKey("free_ga"),
       default: this.getConfig("free_ga", false),
+    };
+    this.settings.points_saver = {
+      type: settingType.CHECKBOX,
+      trans: this.translationKey("points_saver"),
+      default: this.getConfig("points_saver", false),
+    };
+    this.settings.points_saver_min_cost = {
+      type: settingType.INTEGER,
+      trans: this.translationKey("points_saver_min_cost"),
+      min: 10,
+      max: 100,
+      default: this.getConfig("points_saver_min_cost", 50),
     };
   }
 
@@ -333,7 +350,15 @@ class SteamGifts extends BaseService {
     }
 
     if (this.getConfig("wishlist_only")) {
-      // If wishlist_only, stop fetching other pages
+      // If wishlist_only, stop fetching other pages (unless featured_giveaways is enabled)
+      if (this.getConfig("featured_giveaways", false)) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const featuredGa = await this.fetchPage(
+          "https://www.steamgifts.com",
+          "public",
+        );
+        giveaways = [...giveaways, ...featuredGa.filter(g => g.pinned)];
+      }
     } else {
       // Fetch group giveaways if not wishlist_only
       if (!this.getConfig("wishlist_only")) {
@@ -428,11 +453,51 @@ class SteamGifts extends BaseService {
       return;
     }
 
+    // Safety check banked giveaways
+    if (this.getConfig("points_saver", false)) {
+      const banked = this.getConfig("banked_giveaways", []);
+      const currentTime = Math.floor(Date.now() / 1000);
+      const remaining = [];
+
+      for (const bankedGa of banked) {
+        if (bankedGa.endTimestamp <= currentTime) {
+          continue;
+        }
+        if (bankedGa.endTimestamp - currentTime < 7200) {
+          this.log(
+            `Bank safety check: leaving giveaway "${bankedGa.name}" before it ends`,
+            1,
+          );
+          const result = await this.leaveGiveaway(bankedGa, this.xsrfToken);
+          if (result.success) {
+            this.setValue(result.points);
+          }
+          await this.entryInterval();
+        } else {
+          remaining.push(bankedGa);
+        }
+      }
+      this.setConfig("banked_giveaways", remaining);
+    }
+
     // Now enter giveaways!
     for (const giveaway of sortedGiveaways) {
       if (!this.isStarted()) {
         return;
       }
+
+      // If we don't have enough points for this desired giveaway, try to free them from the bank!
+      if (this.getConfig("points_saver", false) && !giveaway.entered) {
+        const pointsReserve = this.getConfig("points_reserve", 0);
+        const needed = giveaway.cost + pointsReserve;
+        if (this.currentValue < needed) {
+          // Check if it satisfies all other rules (ignoring points reserve)
+          if (this.canEnterGiveaway(giveaway, true)) {
+            await this.freePoints(needed);
+          }
+        }
+      }
+
       if (!this.canEnterGiveaway(giveaway)) {
         continue;
       }
@@ -451,6 +516,11 @@ class SteamGifts extends BaseService {
       }
       await this.entryInterval();
     }
+
+    // Bank points if points saver is enabled and we are near 400P
+    if (this.getConfig("points_saver", false) && this.currentValue >= 380) {
+      await this.bankPoints(sortedGiveaways);
+    }
   }
 
   async fetchPage(pageUrl, pageType) {
@@ -467,7 +537,7 @@ class SteamGifts extends BaseService {
 
       return this.extractGiveaways(document).map(ga => ({
         ...ga,
-        pageType,
+        pageType: ga.pinned ? "featured" : pageType,
       }));
     } catch (err) {
       this.log(`Error fetching page ${pageUrl}: ${err.message}`, 3);
@@ -475,7 +545,7 @@ class SteamGifts extends BaseService {
     }
   }
 
-  canEnterGiveaway(giveaway) {
+  canEnterGiveaway(giveaway, ignorePoints = false) {
     const minEntryChance = this.getConfig("min_chance", 0);
     const minTimeLeft = this.getConfig("ending", 0) * 60;
     const minEntryLevel = this.getConfig("min_level", 0);
@@ -484,23 +554,30 @@ class SteamGifts extends BaseService {
     const maxCost = this.getConfig("max_cost", 0);
     const minEntries = this.getConfig("min_entries", 0);
     const pointsReserve = this.getConfig("points_reserve", 0);
-    const reserveExceeded = this.currentValue - giveaway.cost < pointsReserve;
+    const reserveExceeded =
+      !ignorePoints && this.currentValue - giveaway.cost < pointsReserve;
 
     const isWish = giveaway.pageType === "wishlist";
     const isGroup = giveaway.pageType === "group";
     const isWhite = giveaway.whitelist;
+    const isPinned = Boolean(giveaway.pinned);
+    const enterFeatured = this.getConfig("featured_giveaways", false);
 
     const ignoreSomeSetting =
       (isWish && this.getConfig("ignore_on_wish")) ||
       (isGroup && this.getConfig("ignore_on_group"));
 
-    if (this.getConfig("whitelist_only") && !isWhite) {
+    if (isPinned && !enterFeatured) {
       return false;
     }
-    if (this.getConfig("wishlist_only") && !isWish) {
+
+    if (this.getConfig("whitelist_only") && !isWhite && !isPinned) {
       return false;
     }
-    if (this.getConfig("group_only") && !isGroup && !isWhite) {
+    if (this.getConfig("wishlist_only") && !isWish && !isPinned) {
+      return false;
+    }
+    if (this.getConfig("group_only") && !isGroup && !isWhite && !isPinned) {
       return false;
     }
 
@@ -520,8 +597,7 @@ class SteamGifts extends BaseService {
       (minTimeLeft !== 0 && minTimeLeft < giveaway.timeLeft) ||
       giveaway.entered ||
       !giveaway.levelPass ||
-      this.currentValue < giveaway.cost ||
-      (isWish && giveaway.pinned)
+      (!ignorePoints && this.currentValue < giveaway.cost)
     ) {
       return false;
     }
@@ -552,20 +628,85 @@ class SteamGifts extends BaseService {
     return true;
   }
 
+  parseFeaturedBanner(document) {
+    const featuredWrap = document.querySelector(".featured__outer-wrap");
+    if (!featuredWrap) {
+      return null;
+    }
+
+    const linkNode =
+      featuredWrap.querySelector(".featured__heading__medium a") ||
+      featuredWrap.querySelector("a[href^='/giveaway/']");
+    if (!linkNode) {
+      return null;
+    }
+
+    const href = linkNode.getAttribute("href");
+    if (!href || !href.startsWith("/giveaway/")) {
+      return null;
+    }
+
+    const code = href.split("/")[2];
+    if (!code) {
+      return null;
+    }
+
+    const currentTime = Math.floor(Date.now() / 1000);
+    const timeNode = featuredWrap.querySelector("[data-timestamp]");
+    const endTimestamp = timeNode
+      ? Number(timeNode.getAttribute("data-timestamp"))
+      : 0;
+    const timeLeft = endTimestamp ? endTimestamp - currentTime : 3600;
+
+    const costNode = featuredWrap.querySelector(".featured__heading__small");
+    const cost = costNode
+      ? Number(costNode.structuredText.replace(/[^0-9]/g, "")) || 0
+      : 0;
+
+    const isEntered = Boolean(
+      featuredWrap.querySelector(".is-faded") ||
+        featuredWrap.classList.contains("is-faded"),
+    );
+
+    return {
+      url: href,
+      cost,
+      copies: 1,
+      entries: 0,
+      timeLeft,
+      levelRequired: 0,
+      levelPass: true,
+      name: linkNode.structuredText.trim() || "Featured Giveaway",
+      code,
+      entered: isEntered,
+      winChance: 100,
+      whitelist: false,
+      isDLC: false,
+      pinned: true,
+    };
+  }
+
   extractGiveaways(document) {
     const pinnedCodes = document
       .querySelectorAll(
-        ".pinned-giveaways .giveaway__row-outer-wrap, .pinned-giveaways__outer-wrap .giveaway__row-outer-wrap",
+        ".pinned-giveaways .giveaway__row-outer-wrap, .pinned-giveaways__outer-wrap .giveaway__row-outer-wrap, .featured__container .giveaway__row-outer-wrap, [class*='pinned'] .giveaway__row-outer-wrap",
       )
       .map(htmlNode => this.parseGiveaway(htmlNode).code);
 
-    return document
+    const giveaways = document
       .querySelectorAll(".giveaway__row-outer-wrap")
       .map(htmlNode => this.parseGiveaway(htmlNode))
       .map(giveaway => ({
         ...giveaway,
         pinned: pinnedCodes.includes(giveaway.code),
       }));
+
+    const banner = this.parseFeaturedBanner(document);
+    if (banner && !giveaways.some(g => g.code === banner.code)) {
+      giveaways.unshift(banner);
+    }
+
+    return giveaways;
   }
 
   parseGiveaway(htmlNode) {
@@ -651,6 +792,108 @@ class SteamGifts extends BaseService {
         points: res.data.points,
       }))
       .catch(() => ({ success: false }));
+  }
+
+  async leaveGiveaway(giveaway, xsrfToken) {
+    return this.http({
+      url: `${this.websiteUrl}/ajax.php`,
+      responseType: "json",
+      method: "post",
+      data: query.stringify({
+        xsrf_token: xsrfToken,
+        do: "entry_delete",
+        code: giveaway.code,
+      }),
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        Referer: `${this.websiteUrl}${giveaway.url}`,
+      },
+    })
+      .then(res => ({
+        success: res.data.type === "success",
+        points: res.data.points,
+      }))
+      .catch(() => ({ success: false }));
+  }
+
+  async freePoints(neededPoints) {
+    const banked = this.getConfig("banked_giveaways", []);
+    if (banked.length === 0) {
+      return false;
+    }
+
+    const toRemove = [];
+
+    for (const bankedGa of banked) {
+      if (this.currentValue >= neededPoints) {
+        break;
+      }
+
+      this.log(
+        `Refunding bank: leaving giveaway "${bankedGa.name}" to free ${bankedGa.cost} points`,
+        1,
+      );
+      const result = await this.leaveGiveaway(bankedGa, this.xsrfToken);
+      if (result.success) {
+        this.setValue(result.points);
+        toRemove.push(bankedGa.code);
+      }
+      await this.entryInterval();
+    }
+
+    if (toRemove.length > 0) {
+      const remaining = banked.filter(ga => !toRemove.includes(ga.code));
+      this.setConfig("banked_giveaways", remaining);
+    }
+
+    return this.currentValue >= neededPoints;
+  }
+
+  async bankPoints(sortedGiveaways) {
+    const minCost = this.getConfig("points_saver_min_cost", 50);
+    const banked = this.getConfig("banked_giveaways", []);
+    const bankedCodes = new Set(banked.map(ga => ga.code));
+
+    // Find candidates for banking
+    const candidates = sortedGiveaways.filter(ga => {
+      return (
+        !ga.entered &&
+        !bankedCodes.has(ga.code) &&
+        ga.levelPass &&
+        ga.cost >= minCost &&
+        ga.timeLeft >= 86400 // At least 24 hours left
+      );
+    });
+
+    if (candidates.length === 0) {
+      return;
+    }
+
+    // Sort candidates by cost (descending) and then time left (descending)
+    candidates.sort((a, b) => b.cost - a.cost || b.timeLeft - a.timeLeft);
+
+    for (const giveaway of candidates) {
+      if (this.currentValue < 380 || !this.isStarted()) {
+        break;
+      }
+
+      this.log(
+        `Points Saver: banking ${giveaway.cost} points by entering "${giveaway.name}"`,
+        1,
+      );
+      const entry = await this.enterGiveaway(giveaway, this.xsrfToken);
+      if (entry.success) {
+        this.setValue(entry.points);
+        banked.push({
+          code: giveaway.code,
+          name: giveaway.name,
+          cost: giveaway.cost,
+          endTimestamp: Math.floor(Date.now() / 1000) + giveaway.timeLeft,
+        });
+        this.setConfig("banked_giveaways", banked);
+      }
+      await this.entryInterval();
+    }
   }
 }
 

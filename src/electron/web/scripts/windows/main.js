@@ -3,13 +3,6 @@ const { ipcRenderer } = require("electron");
 
 const logoutButton = document.querySelector(".logout-button");
 
-const renderUserInfo = userInfo => {
-  document.querySelector("#head .user-bar .avatar").style.backgroundImage =
-    `url("${userInfo.avatar}")`;
-  document.querySelector("#head .user-bar .username").innerText =
-    userInfo.username;
-};
-
 const initSettingsSection = initialData => {
   const { currentBuild, translations, settings } = initialData;
 
@@ -88,24 +81,61 @@ const initSettingsSection = initialData => {
     });
 
   const lightThemeCheckbox = document.querySelector("input#light_theme");
-  const applyTheme = isLight => {
-    if (isLight) {
-      document.body.classList.add("light-theme");
+  const systemThemeCheckbox = document.querySelector("input#system_theme");
+
+  const applyTheme = () => {
+    const useSystem = systemThemeCheckbox ? systemThemeCheckbox.checked : false;
+    const isLight = lightThemeCheckbox ? lightThemeCheckbox.checked : false;
+
+    if (useSystem) {
+      if (lightThemeCheckbox) {
+        lightThemeCheckbox.disabled = true;
+      }
+      const systemDark = window.matchMedia(
+        "(prefers-color-scheme: dark)",
+      ).matches;
+      if (systemDark) {
+        document.body.classList.remove("light-theme");
+      } else {
+        document.body.classList.add("light-theme");
+      }
     } else {
-      document.body.classList.remove("light-theme");
+      if (lightThemeCheckbox) {
+        lightThemeCheckbox.disabled = false;
+      }
+      if (isLight) {
+        document.body.classList.add("light-theme");
+      } else {
+        document.body.classList.remove("light-theme");
+      }
     }
   };
 
   if (lightThemeCheckbox) {
-    applyTheme(settings.light_theme);
     const originalOnChange = lightThemeCheckbox.onchange;
     lightThemeCheckbox.onchange = () => {
-      applyTheme(lightThemeCheckbox.checked);
       if (originalOnChange) {
         originalOnChange();
       }
+      applyTheme();
     };
   }
+
+  if (systemThemeCheckbox) {
+    const originalOnChange = systemThemeCheckbox.onchange;
+    systemThemeCheckbox.onchange = () => {
+      if (originalOnChange) {
+        originalOnChange();
+      }
+      applyTheme();
+    };
+  }
+
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", applyTheme);
+
+  applyTheme();
 
   const loadSponsors = async () => {
     const container = document.getElementById("sponsors-container");
@@ -230,16 +260,11 @@ setInterval(() => {
   ipcRenderer.send("check-session-is-alive");
 }, 300000);
 
-ipcRenderer.on("userinfo-updated", async (event, userData) => {
-  renderUserInfo(userData);
-});
-
 ipcRenderer.on("window-initial-data", async (event, initialData) => {
   const { accountInfo, translations } = initialData;
 
   updatePagePhrases(translations.phrases);
   initSettingsSection(initialData);
-  renderUserInfo(accountInfo.userData);
   initServicesSwitcher(initialData.settings);
 });
 

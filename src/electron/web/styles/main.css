@@ -322,24 +322,6 @@ a:hover {
   cursor: pointer;
 }
 
-#head .user-bar .avatar {
-  width: 32px;
-  height: 32px;
-  background-size: cover;
-  border-radius: 50%;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-}
-
-#head .user-bar > div.username {
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-main);
-  font-weight: 500;
-}
-
 .window-buttons {
   cursor: default;
   font-size: 0;
@@ -430,6 +412,8 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .content-item[data-menu-id="settings"] .right-side .setter#lang {
@@ -457,13 +441,13 @@ a:hover {
 
 .content-item[data-menu-id="settings"] .right-side .build {
   width: 100%;
-  position: absolute;
-  bottom: 20px;
-  left: 0;
   text-align: center;
   font-size: 12px;
   color: var(--text-dim);
   font-weight: 500;
+  margin-top: auto;
+  padding-top: 10px;
+  flex-shrink: 0;
 }
 
 label[for="useragent"] {
@@ -477,6 +461,7 @@ textarea#useragent {
   width: 100%;
   height: 110px;
   resize: none;
+  flex-shrink: 0;
   color: var(--text-main);
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-color);
@@ -618,10 +603,10 @@ textarea#useragent:focus {
   height: 8px;
   border-radius: 50%;
   position: absolute;
-  right: 12px;
-  bottom: 22px;
-  transform: none;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+  left: 40px;
+  top: 30px;
+  border: 2px solid var(--bg-sidebar);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
 }
 
 .service-icon .service-state {
@@ -709,6 +694,7 @@ textarea#useragent:focus {
   line-height: 1.6;
   font-family: Consolas, Monaco, "Lucida Console", monospace;
   padding: 10px;
+  padding-right: 120px;
   background: rgba(0, 0, 0, 0.15);
   border-radius: 12px;
   border: 1px solid var(--border-color);
@@ -834,6 +820,24 @@ textarea#useragent:focus {
   color: var(--text-main);
   text-align: center;
   width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  padding: 0;
+  box-shadow: none;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+.service-settings
+  .input-wrap.number
+  input.value-label::-webkit-outer-spin-button,
+.service-settings
+  .input-wrap.number
+  input.value-label::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .service-settings .input-wrap.number .button-inc {
@@ -1405,3 +1409,130 @@ body.light-theme .partner-card:hover {
 body.light-theme .partners-placeholder {
   background: rgba(0, 0, 0, 0.01);
 }
+
+/* Modal Dialog Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeInModal 0.2s ease;
+  -webkit-app-region: no-drag;
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  width: 460px;
+  max-width: 90vw;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.modal-close {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 16px;
+  transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+  color: var(--text-main);
+}
+
+.modal-body p {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.modal-body textarea {
+  width: 100%;
+  height: 90px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-main);
+  padding: 10px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.modal-body textarea:focus {
+  border-color: var(--accent-color);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-footer .seeker-button {
+  width: auto;
+  min-width: 100px;
+  padding: 0 16px;
+}
+
+.modal-footer .modal-btn-cancel {
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: none;
+  border: 1px solid var(--border-color);
+}
+
+.modal-footer .modal-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+body.light-theme .modal-content {
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .modal-body textarea {
+  background: #f9fafb;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #1f2937;
+}
+
+body.light-theme .modal-footer .modal-btn-cancel {
+  background: #f3f4f6;
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #374151;
+}
+
