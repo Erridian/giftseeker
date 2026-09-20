@@ -29,4 +29,5 @@ builder
     })
     .catch(err => {
         console.error("❌ Ошибка при сборке Portable:", err);
+        process.exit(1);
     });

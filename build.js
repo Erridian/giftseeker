@@ -75,4 +75,5 @@ builder
   })
   .catch(err => {
     console.error("Error during build!", err);
+    process.exit(1);
   });

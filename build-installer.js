@@ -34,4 +34,5 @@ builder
     })
     .catch(err => {
         console.error("❌ Ошибка при сборке установщика:", err);
+        process.exit(1);
     });
