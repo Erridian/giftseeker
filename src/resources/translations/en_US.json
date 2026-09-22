@@ -23,6 +23,15 @@
       "settings": "Settings"
     },
     "logout": "Sign out",
+    "reload_services": "Reload services interface",
+    "update_available_title": "Update Available!",
+    "update_available_desc": "A new version {0} is available (you have {1}). Would you like to open the download page?",
+    "update_download": "Download Update",
+    "update_later": "Later",
+    "update_check": "Check for updates",
+    "update_checking": "Checking...",
+    "update_latest": "You have the latest version",
+    "update_error": "Error checking updates",
     "upd_progress": "Downloading update",
     "upd_downloaded": "Update downloaded and will be installed after closing the application"
   },
@@ -238,6 +247,7 @@
     "light_theme": "Light theme",
     "system_theme": "System theme",
     "build_version": "Build version",
+    "check_updates": "Check for updates",
     "sponsors_title": "Sponsors & Support",
     "sponsors_desc": "Huge thanks to the amazing people supporting the project!",
     "sponsors_loading": "Loading sponsors list...",

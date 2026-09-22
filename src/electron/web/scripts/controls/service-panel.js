@@ -130,6 +130,7 @@ class SettingsControl {
     this.min = params.min;
     this.max = params.max;
     this.isRange = !!params.range;
+    this.setter = typeof setter === "function" ? setter : () => {};
 
     if (this.isRange) {
       this.rangeType = params.rangeType;
@@ -143,7 +144,7 @@ class SettingsControl {
       }
 
       this.value = value;
-      setter(name, value);
+      this.setter(name, value);
     };
 
     this.control = document.createElement("div");
@@ -184,8 +185,10 @@ class SettingsControl {
   createNumber(params) {
     const step = params.type === "number" ? 1 : 0.01;
 
-    if (params.default < this.min || params.default > this.max) {
-      this.saveValue(params.default);
+    if (this.min !== undefined && params.default < this.min) {
+      this.saveValue(this.min);
+    } else if (this.max !== undefined && params.default > this.max) {
+      this.saveValue(this.max);
     }
 
     this.control.classList.add("number");
@@ -216,10 +219,10 @@ class SettingsControl {
     this.control.appendChild(this.buttonInc);
     this.control.appendChild(label);
 
-    if (params.default === this.max) {
+    if (this.max !== undefined && params.default === this.max) {
       this.buttonInc.classList.add("disabled");
     }
-    if (params.default === this.min) {
+    if (this.min !== undefined && params.default === this.min) {
       this.buttonDec.classList.add("disabled");
     }
 
@@ -234,10 +237,10 @@ class SettingsControl {
         return;
       }
 
-      if (numericVal < this.min) {
+      if (this.min !== undefined && numericVal < this.min) {
         numericVal = this.min;
       }
-      if (numericVal > this.max) {
+      if (this.max !== undefined && numericVal > this.max) {
         numericVal = this.max;
       }
 
@@ -245,19 +248,19 @@ class SettingsControl {
         numericVal = parseFloat(numericVal.toFixed(2));
       }
 
-      if (numericVal === this.max) {
+      if (this.max !== undefined && numericVal === this.max) {
         this.buttonInc.classList.add("disabled");
       } else {
         this.buttonInc.classList.remove("disabled");
       }
-      if (numericVal === this.min) {
+      if (this.min !== undefined && numericVal === this.min) {
         this.buttonDec.classList.add("disabled");
       } else {
         this.buttonDec.classList.remove("disabled");
       }
 
       this.value = numericVal;
-      setter(this.name, numericVal);
+      this.setter(this.name, numericVal);
       if (this.range) {
         this.range.update(numericVal);
       }
@@ -269,9 +272,9 @@ class SettingsControl {
       let val = this.valueLabel.value;
       let numericVal =
         params.type === "number" ? parseInt(val, 10) : parseFloat(val);
-      if (isNaN(numericVal) || numericVal < this.min) {
-        numericVal = this.min;
-      } else if (numericVal > this.max) {
+      if (isNaN(numericVal) || (this.min !== undefined && numericVal < this.min)) {
+        numericVal = this.min ?? 0;
+      } else if (this.max !== undefined && numericVal > this.max) {
         numericVal = this.max;
       }
       if (params.type === "float_number") {
@@ -279,7 +282,7 @@ class SettingsControl {
       }
       this.valueLabel.value = numericVal;
       this.value = numericVal;
-      setter(this.name, numericVal);
+      this.setter(this.name, numericVal);
       if (this.range) {
         this.range.update(numericVal);
       }
@@ -323,7 +326,7 @@ class SettingsControl {
 
   incrementValue(params, step) {
     let value = this.getValue();
-    if (value < this.max) {
+    if (this.max === undefined || value < this.max) {
       value = value + step;
       this.buttonDec.classList.remove("disabled");
     }
@@ -331,7 +334,8 @@ class SettingsControl {
       value = parseFloat(value.toFixed(2));
     }
 
-    if (value === this.max) {
+    if (this.max !== undefined && value >= this.max) {
+      value = this.max;
       this.buttonInc.classList.add("disabled");
     }
 
@@ -341,7 +345,7 @@ class SettingsControl {
 
   decrementValue(params, step) {
     let value = this.getValue();
-    if (value > this.min) {
+    if (this.min === undefined || value > this.min) {
       value = value - step;
       this.buttonInc.classList.remove("disabled");
     }
@@ -349,7 +353,8 @@ class SettingsControl {
       value = parseFloat(value.toFixed(2));
     }
 
-    if (value === this.min) {
+    if (this.min !== undefined && value <= this.min) {
+      value = this.min;
       this.buttonDec.classList.add("disabled");
     }
 
@@ -360,7 +365,9 @@ class SettingsControl {
   setRange(control) {
     this.range = control;
 
-    this.update(control.getValue());
+    if (control && typeof control.getValue === "function") {
+      this.update(control.getValue());
+    }
   }
 
   update(rangeValue) {
@@ -368,13 +375,13 @@ class SettingsControl {
 
     this[constraints] = rangeValue;
 
-    if (this.value < this.min) {
+    if (this.min !== undefined && this.value < this.min) {
       this.value = this.min;
-      setter(this.name, this.min);
+      this.setter(this.name, this.min);
     }
-    if (this.value > this.max) {
+    if (this.max !== undefined && this.value > this.max) {
       this.value = this.max;
-      setter(this.name, this.max);
+      this.setter(this.name, this.max);
     }
 
     if (this.valueLabel) {
@@ -386,10 +393,10 @@ class SettingsControl {
     this.buttonDec.classList.remove("disabled");
     this.buttonInc.classList.remove("disabled");
 
-    if (this.getValue() === this.min) {
+    if (this.min !== undefined && this.getValue() <= this.min) {
       this.buttonDec.classList.add("disabled");
     }
-    if (this.getValue() === this.max) {
+    if (this.max !== undefined && this.getValue() >= this.max) {
       this.buttonInc.classList.add("disabled");
     }
   }

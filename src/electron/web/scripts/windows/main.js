@@ -1,14 +1,116 @@
-import { updatePagePhrases, initTranslationSelector } from "../language.js";
+import {
+  updatePagePhrases,
+  initTranslationSelector,
+  getTranslation,
+} from "../language.js";
+import browser from "../browser.js";
 const { ipcRenderer } = require("electron");
 
 const logoutButton = document.querySelector(".logout-button");
+const reloadServicesButton = document.getElementById("reload-services-btn");
+const headUpdateBtn = document.getElementById("head-update-btn");
+const updateModal = document.getElementById("update-modal");
+const updateModalDesc = document.getElementById("update-modal-desc");
+const updateModalNotes = document.getElementById("update-modal-notes");
+const updateModalClose = document.getElementById("update-modal-close");
+const updateModalLater = document.getElementById("update-modal-later");
+const updateModalDownload = document.getElementById("update-modal-download");
+
+let latestUpdateData = null;
+let currentAppBuild = "";
+
+const showUpdateModal = updateInfo => {
+  if (!updateModal) return;
+  const data = updateInfo || latestUpdateData;
+  if (!data) return;
+
+  if (updateModalDesc) {
+    updateModalDesc.innerText = getTranslation(
+      "ui.update_available_desc",
+      data.version || "latest",
+      data.currentVersion || currentAppBuild,
+    );
+  }
+
+  if (updateModalNotes) {
+    if (data.notes && data.notes.trim()) {
+      updateModalNotes.innerText = data.notes.trim();
+      updateModalNotes.style.display = "block";
+    } else {
+      updateModalNotes.style.display = "none";
+    }
+  }
+
+  updateModal.style.display = "flex";
+};
+
+const hideUpdateModal = () => {
+  if (updateModal) {
+    updateModal.style.display = "none";
+  }
+};
+
+if (updateModalClose) updateModalClose.onclick = hideUpdateModal;
+if (updateModalLater) updateModalLater.onclick = hideUpdateModal;
+if (updateModalDownload) {
+  updateModalDownload.onclick = () => {
+    hideUpdateModal();
+    const targetUrl =
+      (latestUpdateData && latestUpdateData.url) ||
+      "https://github.com/Erridian/giftseeker/releases/latest";
+    browser.openUrl(targetUrl);
+  };
+}
+
+if (updateModal) {
+  updateModal.onclick = e => {
+    if (e.target === updateModal) {
+      hideUpdateModal();
+    }
+  };
+}
+
+if (headUpdateBtn) {
+  headUpdateBtn.onclick = () => {
+    showUpdateModal();
+  };
+}
+
+if (reloadServicesButton) {
+  reloadServicesButton.onclick = () => {
+    const icon = reloadServicesButton.querySelector(".fa");
+    if (icon) icon.classList.add("fa-spin");
+    reloadServicesButton.classList.add("disabled");
+
+    ipcRenderer.send("request-services-reload");
+
+    setTimeout(() => {
+      if (icon) icon.classList.remove("fa-spin");
+      reloadServicesButton.classList.remove("disabled");
+    }, 600);
+  };
+}
 
 const initSettingsSection = initialData => {
   const { currentBuild, translations, settings } = initialData;
+  currentAppBuild = currentBuild;
 
   initTranslationSelector(translations);
 
   document.querySelector(".build .version").innerText = currentBuild;
+
+  const checkUpdateBtn = document.getElementById("check-update-btn");
+  const updateStatusLabel = document.getElementById("update-status-label");
+
+  if (checkUpdateBtn) {
+    checkUpdateBtn.onclick = () => {
+      checkUpdateBtn.classList.add("disabled");
+      if (updateStatusLabel) {
+        updateStatusLabel.innerText = getTranslation("ui.update_checking");
+      }
+      ipcRenderer.send("check-for-updates", { manual: true });
+    };
+  }
 
   const userAgentArea = document.querySelector("textarea#useragent");
 
@@ -254,8 +356,6 @@ const initServicesSwitcher = settings => {
     servicesSwitcherScroll(ev.wheelDelta > 0 ? 20 : -20);
 };
 
-ipcRenderer.send("window-loaded", "main-window");
-
 setInterval(() => {
   ipcRenderer.send("check-session-is-alive");
 }, 300000);
@@ -294,4 +394,44 @@ document.querySelectorAll(".menu li").forEach(menuItem => {
       .querySelectorAll(`[data-menu-id=${menuItem.dataset.menuId}]`)
       .forEach(node => node.classList.add("active"));
   };
+});
+
+ipcRenderer.on("update-available", (event, info) => {
+  latestUpdateData = info;
+  if (headUpdateBtn) {
+    headUpdateBtn.classList.add("visible");
+  }
+
+  const checkUpdateBtn = document.getElementById("check-update-btn");
+  const updateStatusLabel = document.getElementById("update-status-label");
+
+  if (checkUpdateBtn) {
+    checkUpdateBtn.classList.remove("disabled");
+  }
+
+  if (updateStatusLabel) {
+    updateStatusLabel.innerText = `${getTranslation("ui.update_available_title")} (${info.version})`;
+    updateStatusLabel.style.color = "#a78bfa";
+  }
+
+  showUpdateModal(info);
+});
+
+ipcRenderer.on("update-check-result", (event, result) => {
+  const checkUpdateBtn = document.getElementById("check-update-btn");
+  const updateStatusLabel = document.getElementById("update-status-label");
+
+  if (checkUpdateBtn) {
+    checkUpdateBtn.classList.remove("disabled");
+  }
+
+  if (updateStatusLabel) {
+    if (result.isLatest) {
+      updateStatusLabel.innerText = getTranslation("ui.update_latest");
+      updateStatusLabel.style.color = "#10b981";
+    } else if (result.error) {
+      updateStatusLabel.innerText = getTranslation("ui.update_error");
+      updateStatusLabel.style.color = "#ef4444";
+    }
+  }
 });

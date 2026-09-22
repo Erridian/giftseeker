@@ -16,86 +16,113 @@ const services = {};
 ipcRenderer.on(
   "window-initial-data",
   async (event, { servicesInfo, translations }) => {
+    if (!iconsWrap || !panelsWrap) {
+      return;
+    }
+
     iconsWrap.innerHTML = "";
     panelsWrap.innerHTML = "";
 
-    for (const serviceInfo of servicesInfo) {
-      const service = {
-        name: serviceInfo.name,
-        state: serviceInfo.state,
-        isStarted: function () {
-          return this.state === "started" || this.state === "error";
-        },
-        inProcess: function () {
-          return this.state === "process";
-        },
-      };
+    try {
+      for (const serviceInfo of servicesInfo) {
+        try {
+          const service = {
+            name: serviceInfo.name,
+            state: serviceInfo.state,
+            isStarted: function () {
+              return this.state === "started" || this.state === "error";
+            },
+            inProcess: function () {
+              return this.state === "process";
+            },
+          };
 
-      service.icon = new ServiceIcon(service.name, service.state);
-      service.panel = new ServicePanel(
-        service.name,
-        serviceInfo.settings,
-        new Logger(getTranslation, timeFormat),
-        new ServiceControlPanel(
-          serviceInfo.websiteUrl,
-          serviceInfo.currency,
-          service.name,
-        ),
-      );
+          service.icon = new ServiceIcon(service.name, service.state);
+          service.panel = new ServicePanel(
+            service.name,
+            serviceInfo.settings,
+            new Logger(getTranslation, timeFormat),
+            new ServiceControlPanel(
+              serviceInfo.websiteUrl,
+              serviceInfo.currency,
+              service.name,
+            ),
+          );
 
-      service.panel.controlPanel.setOnSetCookiesCallback(serviceName => {
-        openCookiesModal(serviceName);
-      });
+          service.panel.controlPanel.setOnSetCookiesCallback(serviceName => {
+            openCookiesModal(serviceName);
+          });
 
-      const serviceButton = service.panel.controlPanel.mainButton;
+          const serviceButton = service.panel.controlPanel.mainButton;
 
-      service.icon.onClick(() => {
-        document
-          .querySelectorAll(".service-icon, .service-panel")
-          .forEach(el => el.classList.remove("active"));
+          service.icon.onClick(() => {
+            document
+              .querySelectorAll(".service-icon, .service-panel")
+              .forEach(el => el.classList.remove("active"));
 
-        service.icon.setActive();
-        service.panel.setActive();
-      });
+            service.icon.setActive();
+            service.panel.setActive();
+          });
 
-      service.panel.setMenuItemClickCallback(pageCode => {
-        for (const service of Object.values(services)) {
-          service.panel.selectPage(pageCode);
+          service.panel.setMenuItemClickCallback(pageCode => {
+            for (const s of Object.values(services)) {
+              if (s.panel) {
+                s.panel.selectPage(pageCode);
+              }
+            }
+          });
+
+          serviceButton.onclick = async () => {
+            if (serviceButton.classList.contains("disabled")) {
+              return;
+            }
+
+            ipcRenderer.send("service-button-pressed", serviceInfo.name);
+          };
+
+          serviceButton.onmouseenter = () => {
+            serviceButton.classList.add("hovered");
+            if (service.state === "started") {
+              serviceButton.innerText = getTranslation("service.btn_stop");
+            }
+          };
+
+          serviceButton.onmouseleave = () => {
+            serviceButton.classList.remove("hovered");
+          };
+
+          service.icon.appendTo(iconsWrap);
+          service.panel.appendTo(panelsWrap);
+
+          services[service.name] = service;
+        } catch (err) {
+          console.error(`Failed to initialize service ${serviceInfo.name}:`, err);
         }
-      });
+      }
 
-      serviceButton.onclick = async () => {
-        if (serviceButton.classList.contains("disabled")) {
-          return;
+      const activeServiceBefore = document.querySelector(
+        ".service-icon.active .service-name",
+      )?.innerText;
+      const availableServiceNames = Object.keys(services);
+      if (availableServiceNames.length > 0) {
+        const targetService =
+          activeServiceBefore && services[activeServiceBefore]
+            ? activeServiceBefore
+            : availableServiceNames[0];
+
+        if (services[targetService]) {
+          services[targetService].icon.setActive();
+          services[targetService].panel.setActive();
         }
+      }
 
-        ipcRenderer.send("service-button-pressed", serviceInfo.name);
-      };
-
-      serviceButton.onmouseenter = () => {
-        serviceButton.classList.add("hovered");
-        if (service.state === "started") {
-          serviceButton.innerText = getTranslation("service.btn_stop");
-        }
-      };
-
-      serviceButton.onmouseleave = () => {
-        serviceButton.classList.remove("hovered");
-      };
-
-      service.icon.appendTo(iconsWrap);
-      service.panel.appendTo(panelsWrap);
-
-      services[service.name] = service;
+      if (translations && translations.phrases) {
+        updatePagePhrases(translations.phrases);
+      }
+      ipcRenderer.send("services-loaded");
+    } catch (e) {
+      console.error("Critical error in window-initial-data services handler:", e);
     }
-
-    const firstService = servicesInfo[0].name;
-
-    services[firstService].icon.setActive();
-    services[firstService].panel.setActive();
-
-    updatePagePhrases(translations.phrases);
-    ipcRenderer.send("services-loaded");
   },
 );
 

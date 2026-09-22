@@ -250,30 +250,54 @@ a:hover {
 #head .update-available {
   display: none;
   -webkit-app-region: no-drag;
-  line-height: 40px;
   position: absolute;
-  right: 10px;
-  bottom: 5px;
-  width: 40px;
-  height: 40px;
+  right: 175px;
+  top: 15px;
+  width: 32px;
+  height: 32px;
   text-align: center;
-  font-size: 20px;
-  cursor: help;
-  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  color: #a78bfa;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 8px;
   z-index: 5;
-  transition: color 0.2s ease;
+  transition: all 0.2s ease;
+  animation: pulseUpdate 2s infinite ease-in-out;
+}
+
+@keyframes pulseUpdate {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.6);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
+  }
 }
 
 #head .update-available:hover {
-  color: var(--text-accent);
+  background: rgba(139, 92, 246, 0.35);
+  color: #fff;
+  border-color: #8b5cf6;
 }
 
+#head .update-available.visible,
 #head .update-available.progress {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #head .update-available.downloaded {
   color: var(--status-started);
+  border-color: var(--status-started);
 }
 
 #head .user-bar {

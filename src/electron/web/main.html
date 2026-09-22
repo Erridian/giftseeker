@@ -22,7 +22,7 @@
           <span data-lang="ui.menu.settings"> </span>
         </li>
       </ul>
-      <div class="update-available" data-lang-title="ui.upd_progress">
+      <div class="update-available" id="head-update-btn" data-tippy-translate="ui.update_available_title">
         <span class="fa fa-download"></span>
       </div>
       <div class="window-buttons">
@@ -36,6 +36,14 @@
         ></span>
       </div>
       <div class="user-bar">
+        <div
+          class="btn reload-services-button"
+          id="reload-services-btn"
+          data-tippy-content="Reload services"
+          data-tippy-translate="ui.reload_services"
+        >
+          <span class="fa fa-sync-alt"></span>
+        </div>
         <div
           class="btn logout-button"
           data-tippy-content="Sign out"
@@ -208,8 +216,14 @@
             <label for="trial_local" data-lang="settings.trial_local"> </label>
           </div>
           <div class="build no-selectable">
-            <span data-lang="settings.build_version"></span>
-            <span class="version"></span>
+            <div style="margin-bottom: 6px;">
+              <span data-lang="settings.build_version"></span>
+              <span class="version"></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button id="check-update-btn" class="seeker-button" style="height: 26px; line-height: 26px; font-size: 11px; padding: 0 10px; width: auto;" data-lang="settings.check_updates"></button>
+              <span id="update-status-label" style="font-size: 11px; color: var(--text-muted);"></span>
+            </div>
           </div>
         </div>
       </div>
@@ -230,8 +244,28 @@
         </div>
       </div>
     </div>
+    <div id="update-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="update-modal-title" data-lang="ui.update_available_title"></h3>
+          <span id="update-modal-close" class="modal-close fa fa-times"></span>
+        </div>
+        <div class="modal-body">
+          <p id="update-modal-desc" style="font-size: 13px; color: var(--text-main); margin-bottom: 8px; line-height: 1.4;"></p>
+          <div id="update-modal-notes" style="font-size: 12px; color: var(--text-muted); max-height: 140px; overflow-y: auto; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 8px; white-space: pre-wrap; display: none; line-height: 1.4;"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="update-modal-later" class="seeker-button modal-btn-cancel" data-lang="ui.update_later"></button>
+          <button id="update-modal-download" class="seeker-button modal-btn-save" data-lang="ui.update_download"></button>
+        </div>
+      </div>
+    </div>
     <script type="module" src="scripts/windows/main.js"></script>
     <script type="module" src="scripts/services.js"></script>
+    <script type="module">
+      const { ipcRenderer } = require("electron");
+      ipcRenderer.send("window-loaded", "main-window");
+    </script>
     <script type="module">
       import browser from "./scripts/browser.js";
       document.addEventListener(

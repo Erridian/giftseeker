@@ -212,9 +212,10 @@ try {
       unloadServicesHandlers(services);
     });
 
-    ipcMain.on("window-loaded", ({ sender }, windowName) => {
-      sender.removeAllListeners("did-finish-load");
-      sender.removeAllListeners("did-stop-loading");
+    const sendInitialData = sender => {
+      if (!sender || sender.isDestroyed()) {
+        return;
+      }
       sender.send("window-initial-data", {
         steamUrl: config.steamUrl,
         userAgent: {
@@ -241,6 +242,16 @@ try {
           },
         })),
       });
+    };
+
+    ipcMain.on("request-services-reload", ({ sender }) => {
+      sendInitialData(sender);
+    });
+
+    ipcMain.on("window-loaded", ({ sender }, windowName) => {
+      sender.removeAllListeners("did-finish-load");
+      sender.removeAllListeners("did-stop-loading");
+      sendInitialData(sender);
 
       if (windowName === "auth-window") {
         checkSessionIsAlive(session, sender);
@@ -252,6 +263,126 @@ try {
         }
       }
     });
+
+    const isNewerVersion = (latest, current) => {
+      if (!latest || !current) return false;
+      const cleanLatest = String(latest).replace(/^v/, "").trim();
+      const cleanCurrent = String(current).replace(/^v/, "").trim();
+      const lParts = cleanLatest.split(".").map(n => parseInt(n, 10) || 0);
+      const cParts = cleanCurrent.split(".").map(n => parseInt(n, 10) || 0);
+      for (let i = 0; i < Math.max(lParts.length, cParts.length); i++) {
+        const l = lParts[i] || 0;
+        const c = cParts[i] || 0;
+        if (l > c) return true;
+        if (l < c) return false;
+      }
+      return false;
+    };
+
+    const checkGitHubUpdates = (notifyIfLatest = false, targetSender = null) => {
+      const https = require("https");
+      const url = "https://api.github.com/repos/Erridian/giftseeker/releases/latest";
+      const options = {
+        headers: {
+          "User-Agent": "Dropushko-Client",
+          Accept: "application/vnd.github.v3+json",
+        },
+      };
+
+      const req = https.get(url, options, res => {
+        let rawData = "";
+        res.on("data", chunk => {
+          rawData += chunk;
+        });
+        res.on("end", () => {
+          try {
+            if (res.statusCode === 200) {
+              const data = JSON.parse(rawData);
+              const tagName = data.tag_name || data.name || "";
+              const htmlUrl =
+                data.html_url ||
+                "https://github.com/Erridian/giftseeker/releases/latest";
+              const body = data.body || "";
+
+              if (isNewerVersion(tagName, currentBuild)) {
+                const updatePayload = {
+                  version: tagName,
+                  currentVersion: currentBuild,
+                  url: htmlUrl,
+                  notes: body,
+                };
+                if (targetSender && !targetSender.isDestroyed()) {
+                  targetSender.send("update-available", updatePayload);
+                } else if (mainWindow && !mainWindow.isDestroyed()) {
+                  mainWindow.webContents.send("update-available", updatePayload);
+                }
+                return;
+              }
+            }
+
+            if (notifyIfLatest) {
+              const payload = { currentVersion: currentBuild, isLatest: true };
+              if (targetSender && !targetSender.isDestroyed()) {
+                targetSender.send("update-check-result", payload);
+              } else if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send("update-check-result", payload);
+              }
+            }
+          } catch (e) {
+            if (notifyIfLatest && targetSender && !targetSender.isDestroyed()) {
+              targetSender.send("update-check-result", { error: true });
+            }
+          }
+        });
+      });
+
+      req.on("error", () => {
+        if (notifyIfLatest && targetSender && !targetSender.isDestroyed()) {
+          targetSender.send("update-check-result", { error: true });
+        }
+      });
+      req.setTimeout(8000, () => {
+        req.abort();
+        if (notifyIfLatest && targetSender && !targetSender.isDestroyed()) {
+          targetSender.send("update-check-result", { error: true });
+        }
+      });
+    };
+
+    ipcMain.on("check-for-updates", ({ sender }, { manual } = {}) => {
+      checkGitHubUpdates(manual, sender);
+    });
+
+    try {
+      autoUpdater.on("update-available", info => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("update-available", {
+            version: info.version,
+            currentVersion: currentBuild,
+            notes: info.releaseNotes,
+            url: "https://github.com/Erridian/giftseeker/releases/latest",
+          });
+        }
+      });
+      autoUpdater.on("update-downloaded", info => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("update-downloaded", {
+            version: info.version,
+          });
+        }
+      });
+    } catch (e) {
+      // Ignore
+    }
+
+    setTimeout(() => {
+      checkGitHubUpdates(false);
+      if (!ENV.isPortable) {
+        try {
+          autoUpdater.checkForUpdatesAndNotify();
+        } catch (e) {}
+      }
+    }, 4000);
 
     let sessionCheckFailures = 0;
 
